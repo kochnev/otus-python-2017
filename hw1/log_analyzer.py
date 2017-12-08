@@ -11,6 +11,7 @@ import os
 import fnmatch
 import gzip
 import re
+from collections import defaultdict
 from datetime import datetime
 
 config = {
@@ -22,7 +23,39 @@ config = {
 logFileInfo = tuple()
 
 
-def gen_find(filepat, top):
+def get_report(parsed_lines):
+    grouped_urls = defaultdict(list)
+    for url, r_time in parsed_lines:
+        grouped_urls[url].append(r_time)
+
+    return grouped_urls
+
+
+
+def parse_log(lines):
+    for line in lines:
+        try:
+            chunks = line.split()
+            url = chunks[6]
+            r_time = chunks[-1]
+            yield url, r_time
+        except:
+            pass
+
+
+def read_log(log_path):
+    if log_path.endswith(".gz"):
+        log = gzip.open(log_path,'r')
+    else:
+        log = open(log_path)
+
+    for line in log:
+        yield line
+
+    log.close()
+
+
+def get_logfiles(filepat, top):
     for path, dirlist, filelist in os.walk(top):
         for name in fnmatch.filter(filelist,filepat):
             logfile = os.path.join(path, name)
@@ -32,8 +65,17 @@ def gen_find(filepat, top):
 
 
 def main():
-    logfiles = gen_find("nginx-access-ui.log-*.gz", config["LOG_DIR"])
-    print max(logfiles, key=lambda item:item[1])
+    logfiles = get_logfiles("nginx-access-ui.log-*.gz", config["LOG_DIR"])
+    latest_logfile = max(logfiles, key=lambda item:item[1])[1]
+    lines = read_log(latest_logfile)
+    parsed_lines = parse_log(lines)
+    
+    report = get_report(parsed_lines)
 
+    for url, times in report.items():
+        print url 
+        print times
+        break
+        
 if __name__ == "__main__":
     main()
