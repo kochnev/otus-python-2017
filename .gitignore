@@ -102,3 +102,6 @@ ENV/
 
 #swp
 *.swp
+
+#log
+hw1/log/
