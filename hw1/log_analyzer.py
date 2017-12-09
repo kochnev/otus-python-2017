@@ -13,9 +13,10 @@ import gzip
 import re
 from collections import defaultdict
 from datetime import datetime
+from statistics import median
 
 config = {
-    "REPORT_SIZE": 1000,
+    "REPORT_SIZE": 500,
     "REPORT_DIR": "./reports",
     "LOG_DIR": "./log"
 }
@@ -24,12 +25,42 @@ logFileInfo = tuple()
 
 
 def get_report(parsed_lines):
+    all_count = 0
+    all_time = 0
+    report_size = config["REPORT_SIZE"]
+
     grouped_urls = defaultdict(list)
     for url, r_time in parsed_lines:
         grouped_urls[url].append(r_time)
+        all_time += float(r_time)
+        all_count += 1
 
-    return grouped_urls
+    table = []
+    for url, time_col in grouped_urls.items():
+        times_float= [float(x) for x in time_col]
+        time_sum = sum(times_float)
+        if time_sum>report_size:
+            count = len(time_col)
+            count_p = (count/all_count)*100
+            time_avg = time_sum/count
+            time_max = max(times_float)
+            time_med = median(times_float)
+            time_perc = (time_sum/all_count)*1
+            
+            row = { 
+                "url": url,
+                "count": count,
+                "count_perc": round(count_p, 3),
+                "time_avg": round(time_avg, 3),
+                "time_max": round(time_max, 3),
+                "time_med": round(time_med, 3),
+                "time_perc": round(time_perc, 3),
+                "time_sum": round(time_sum, 3)
+            }
+            
+            table.append(row)
 
+    return sorted(table, key=lambda k: k['time_sum'], reverse=True)
 
 
 def parse_log(lines):
@@ -72,10 +103,7 @@ def main():
     
     report = get_report(parsed_lines)
 
-    for url, times in report.items():
-        print url 
-        print times
-        break
-        
+    print(report[:3])        
+
 if __name__ == "__main__":
     main()
