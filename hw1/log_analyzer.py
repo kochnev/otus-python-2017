@@ -11,6 +11,7 @@ import os
 import fnmatch
 import gzip
 import re
+import json
 from collections import defaultdict
 from datetime import datetime
 from statistics import median
@@ -23,8 +24,21 @@ config = {
 
 logFileInfo = tuple()
 
+def create_report_html(report_data, log_day):
+    report_name = 'report_' + str(log_day) +'.html'
+    report_dir = config["REPORT_DIR"]
 
-def get_report(parsed_lines):
+    with open('report.html', 'r', encoding='utf-8') as template:
+        template_data = template.read()
+    
+    json_data = json.dumps(report_data)
+
+
+    ready_data = template_data.replace('$table_json', json_data)
+    with open(os.path.join(report_dir,  report_name), 'w', encoding='utf-8') as html_report:
+        html_report.write(ready_data)
+
+def get_report_data(parsed_lines):
     all_count = 0
     all_time = 0
     report_size = config["REPORT_SIZE"]
@@ -76,7 +90,7 @@ def parse_log(lines):
 
 def read_log(log_path):
     if log_path.endswith(".gz"):
-        log = gzip.open(log_path,'r')
+        log = gzip.open(log_path,'rt')
     else:
         log = open(log_path)
 
@@ -97,13 +111,15 @@ def get_logfiles(filepat, top):
 
 def main():
     logfiles = get_logfiles("nginx-access-ui.log-*.gz", config["LOG_DIR"])
-    latest_logfile = max(logfiles, key=lambda item:item[1])[1]
-    lines = read_log(latest_logfile)
+    latest_logfile = max(logfiles, key=lambda item:item[1])
+    latest_logfile_name = latest_logfile[1]
+    latest_log_day = latest_logfile[0]
+    lines = read_log(latest_logfile_name)
     parsed_lines = parse_log(lines)
     
-    report = get_report(parsed_lines)
-
-    print(report[:3])        
+    report_data = get_report_data(parsed_lines)
+    
+    create_report_html(report_data, latest_log_day)  
 
 if __name__ == "__main__":
     main()
