@@ -12,22 +12,21 @@ import fnmatch
 import gzip
 import re
 import json
+import time
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime as dt
 from statistics import median
 
 config = {
     "REPORT_SIZE": 500,
     "REPORT_DIR": "./reports",
-    "LOG_DIR": "./log"
+    "LOG_DIR": "./log",
+    "TS_DIR": "./ts"
 }
 
 logFileInfo = tuple()
 
-def create_report_html(report_data, log_day):
-    report_name = 'report_' + str(log_day) +'.html'
-    report_dir = config["REPORT_DIR"]
-
+def create_report_html(report_data, report_file_path):
     with open('report.html', 'r', encoding='utf-8') as template:
         template_data = template.read()
     
@@ -35,7 +34,7 @@ def create_report_html(report_data, log_day):
 
 
     ready_data = template_data.replace('$table_json', json_data)
-    with open(os.path.join(report_dir,  report_name), 'w', encoding='utf-8') as html_report:
+    with open(report_file_path, 'w', encoding='utf-8') as html_report:
         html_report.write(ready_data)
 
 def get_report_data(parsed_lines):
@@ -105,8 +104,19 @@ def get_logfiles(filepat, top):
         for name in fnmatch.filter(filelist,filepat):
             logfile = os.path.join(path, name)
             match = re.search('nginx-access-ui.log-(\d{4}\d{2}\d{2})\.?', name)
-            day = day_of_log = datetime.strptime(match.group(1),'%Y%m%d').date() 
+            day = day_of_log = dt.strptime(match.group(1),'%Y%m%d').date() 
             yield (day,logfile)
+
+def update_ts():
+    """Update timestamp of the last report"""
+    ts = time.time()
+    ts_str = dt.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
+    ts_dir = config["TS_DIR"]
+    file_path = os.path.join(ts_dir, "log_analyzer.ts")
+    with open(file_path, "w", encoding="utf-8") as f:
+        f.write(ts_str)
+    
+    os.utime(file_path,(int(ts),int(ts)))
 
 
 def main():
@@ -114,12 +124,24 @@ def main():
     latest_logfile = max(logfiles, key=lambda item:item[1])
     latest_logfile_name = latest_logfile[1]
     latest_log_day = latest_logfile[0]
+
+    report_name = "report_{0}.html".format(latest_log_day)
+    report_dir = config["REPORT_DIR"]
+
+    report_file_path = os.path.join(report_dir,report_name)
+    if os.path.exists(report_file_path):
+        print("Отчет за дату  {0} уже существует".format(latest_log_day))
+        return
+
+
+
     lines = read_log(latest_logfile_name)
     parsed_lines = parse_log(lines)
     
     report_data = get_report_data(parsed_lines)
     
-    create_report_html(report_data, latest_log_day)  
+    create_report_html(report_data, report_file_path) 
+    update_ts()
 
 if __name__ == "__main__":
     main()

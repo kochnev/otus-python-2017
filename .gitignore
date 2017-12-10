@@ -107,3 +107,5 @@ ENV/
 hw1/log/
 #report
 hw1/reports/
+#ts
+hw1/ts/
