@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 
@@ -14,6 +14,7 @@ import re
 import json
 import time
 import logging
+import argparse
 from collections import defaultdict
 from datetime import datetime as dt
 from statistics import median
@@ -24,8 +25,9 @@ config = {
     "REPORT_DIR": "./reports",
     "LOG_DIR": "./log",
     "TS_DIR": "./ts",
-    "LOGGING": "ExecutionLog"
 }
+
+config_path = '/usr/local/etc/log_analyzer.conf'
 
 logFileInfo = tuple()
 
@@ -140,6 +142,25 @@ def update_ts():
    
     os.utime(file_path,(int(ts),int(ts)))
 
+def get_config_dict(path_to_config):
+    try:
+        with open(path_to_config, 'r') as f:
+            return json.load(f)
+    except json.JSONDecodeError:
+        logging.error("please, check your config file")
+        raise Exception("please, check your config file")
+
+def check_config():
+    try:
+        report_size = int(config["REPORT_SIZE"]),
+        report_dir = config["REPORT_DIR"],
+        log_dir = config["LOG_DIR"],
+        ts_dir = config["TS_DIR"],
+    except:
+        logging.error("please, check your config file")
+        raise  Exception("please, check your config file")
+
+     
 
 def main():
     logging.info("search for logfiles")
@@ -156,10 +177,10 @@ def main():
     report_name = "report_{0}.html".format(latest_log_day)
     report_dir = config["REPORT_DIR"]
     report_file_path = os.path.join(report_dir,report_name)
-    logging.info("the report name is {0}".format(report_file_path))
+    logging.info("report name is {0}".format(report_file_path))
 
     if os.path.exists(report_file_path):
-        logging.error("Отчет за дату  {0} уже существует".format(latest_log_day))
+        logging.error("Report for date  {0} already exists".format(latest_log_day))
         return
 
   
@@ -172,25 +193,47 @@ def main():
     logging.info("get report data")
     report_data = get_report_data(parsed_lines)
     
-    logging.info("generate html report")
+    logging.info("generating html report...")
     create_report_html(report_data, report_file_path) 
-    
-    logging.info("update timestamp")
+    logging.info("report html has created successfully!")
     update_ts()
+    logging.info("timestamp has updated")
+
 
 
     
 if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '--config',
+        "-c",
+        type=str,
+        help="Path for configuration file.",
+        default=config_path
+    )
+
+    args = parser.parse_args()
+    arg_config_path = args.config
+    
+    arg_config = get_config_dict(arg_config_path)
+    config.update(arg_config)
+ 
+    check_config()
+
     logging.basicConfig(
             level=logging.INFO,
             format='[%(asctime)s] %(levelname).1s %(message)s',
             datefmt='%Y.%m.%d %H:%M:%S',
-            filename=None
+            filename=config["LOGGING"] if "LOGGING" in config else None
         )
         
     logging.info("======start=======")
        
-    main()
-       
+    try:
+        main()
+    except Exception as e:
+        logging.exception(e, exc_info=True)   
+
     logging.info("=====end=====")
 
