@@ -31,6 +31,7 @@ config_path = '/usr/local/etc/log_analyzer.conf'
 
 logFileInfo = tuple()
 
+
 def create_report_html(report_data, report_file_path):
     """function to save report in html"""
     try:
@@ -39,9 +40,8 @@ def create_report_html(report_data, report_file_path):
     except:
         logging.error("An error occured while opening report.html")
         raise
-    
-    json_data = json.dumps(report_data)
 
+    json_data = json.dumps(report_data)
 
     ready_data = template_data.replace('$table_json', json_data)
     try:
@@ -66,17 +66,17 @@ def get_report_data(parsed_lines):
 
     table = []
     for url, time_col in grouped_urls.items():
-        times_float= [float(x) for x in time_col]
+        times_float = [float(x) for x in time_col]
         time_sum = sum(times_float)
-        if time_sum>report_size:
+        if time_sum > report_size:
             count = len(time_col)
-            count_p = (count/all_count)*100
-            time_avg = time_sum/count
+            count_p = (count / all_count) * 100
+            time_avg = time_sum / count
             time_max = max(times_float)
             time_med = median(times_float)
-            time_perc = (time_sum/all_count)*1
-            
-            row = { 
+            time_perc = (time_sum / all_count) * 1
+
+            row = {
                 "url": url,
                 "count": count,
                 "count_perc": round(count_p, 3),
@@ -85,8 +85,8 @@ def get_report_data(parsed_lines):
                 "time_med": round(time_med, 3),
                 "time_perc": round(time_perc, 3),
                 "time_sum": round(time_sum, 3)
-                }
-            
+            }
+
             table.append(row)
 
     return sorted(table, key=lambda k: k['time_sum'], reverse=True)
@@ -107,7 +107,7 @@ def parse_log(lines):
 def read_log(log_path):
     """generator for reading lines of logfile"""
     if log_path.endswith(".gz"):
-        log = gzip.open(log_path,'rt')
+        log = gzip.open(log_path, 'rt')
     else:
         log = open(log_path)
 
@@ -120,11 +120,12 @@ def read_log(log_path):
 def get_logfiles(filepat, top):
     """generator for getting logfiles"""
     for path, dirlist, filelist in os.walk(top):
-        for name in fnmatch.filter(filelist,filepat):
+        for name in fnmatch.filter(filelist, filepat):
             logfile = os.path.join(path, name)
             match = re.search('nginx-access-ui.log-(\d{4}\d{2}\d{2})\.?', name)
-            day = day_of_log = dt.strptime(match.group(1),'%Y%m%d').date() 
-            yield (day,logfile)
+            day = day_of_log = dt.strptime(match.group(1), '%Y%m%d').date()
+            yield (day, logfile)
+
 
 def update_ts():
     """Update timestamp of the last report"""
@@ -139,8 +140,9 @@ def update_ts():
     except:
         logging.error("An error occured while opening {0}".format(report_file_path))
         raise
-   
-    os.utime(file_path,(int(ts),int(ts)))
+
+    os.utime(file_path, (int(ts), int(ts)))
+
 
 def get_config_dict(path_to_config):
     try:
@@ -150,6 +152,7 @@ def get_config_dict(path_to_config):
         logging.error("please, check your config file")
         raise Exception("please, check your config file")
 
+
 def check_config():
     try:
         report_size = int(config["REPORT_SIZE"]),
@@ -158,17 +161,16 @@ def check_config():
         ts_dir = config["TS_DIR"],
     except:
         logging.error("please, check your config file")
-        raise  Exception("please, check your config file")
+        raise Exception("please, check your config file")
 
-     
 
 def main():
     logging.info("search for logfiles")
     logfiles = get_logfiles("nginx-access-ui.log-*.gz", config["LOG_DIR"])
-    
-    logging.info("get the latest logfile") 
-    latest_logfile = max(logfiles, key=lambda item:item[1])
-    
+
+    logging.info("get the latest logfile")
+    latest_logfile = max(logfiles, key=lambda item: item[1])
+
     logging.info("get the attributes of the latest logfile")
     latest_logfile_name = latest_logfile[1]
     latest_log_day = latest_logfile[0]
@@ -176,32 +178,29 @@ def main():
 
     report_name = "report_{0}.html".format(latest_log_day)
     report_dir = config["REPORT_DIR"]
-    report_file_path = os.path.join(report_dir,report_name)
+    report_file_path = os.path.join(report_dir, report_name)
     logging.info("report name is {0}".format(report_file_path))
 
     if os.path.exists(report_file_path):
         logging.error("Report for date  {0} already exists".format(latest_log_day))
         return
 
-  
     logging.info("read lines from the log file")
     lines = read_log(latest_logfile_name)
-    
+
     logging.info("get parsed lines")
     parsed_lines = parse_log(lines)
-    
+
     logging.info("get report data")
     report_data = get_report_data(parsed_lines)
-    
+
     logging.info("generating html report...")
-    create_report_html(report_data, report_file_path) 
+    create_report_html(report_data, report_file_path)
     logging.info("report html has created successfully!")
     update_ts()
     logging.info("timestamp has updated")
 
 
-
-    
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
@@ -215,25 +214,24 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     arg_config_path = args.config
-    
+
     arg_config = get_config_dict(arg_config_path)
     config.update(arg_config)
- 
+
     check_config()
 
     logging.basicConfig(
-            level=logging.INFO,
-            format='[%(asctime)s] %(levelname).1s %(message)s',
-            datefmt='%Y.%m.%d %H:%M:%S',
-            filename=config["LOGGING"] if "LOGGING" in config else None
-        )
-        
+        level=logging.INFO,
+        format='[%(asctime)s] %(levelname).1s %(message)s',
+        datefmt='%Y.%m.%d %H:%M:%S',
+        filename=config["LOGGING"] if "LOGGING" in config else None
+    )
+
     logging.info("======start=======")
-       
+
     try:
         main()
     except Exception as e:
-        logging.exception(e, exc_info=True)   
+        logging.exception(e, exc_info=True)
 
     logging.info("=====end=====")
-
