@@ -21,10 +21,13 @@ According nginx log format (http://nginx.org/en/docs/http/ngx_http_log_module.ht
 ## Getting Started
 
 To run test, please type: python3 test_log_analyzer.py
+
 To generate report with statstic, please type: python log_analyzer.py
 
 Optional parameters:
---config path_to_config_file  Exmaple of config file you can find in log_analyzer.conf
+--config path_to_config_file  
+
+Exmaple of config file you can find in log_analyzer.conf
 
 ## Prerequisites
 
