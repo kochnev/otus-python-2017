@@ -26,11 +26,11 @@ To generate report with statstic, please type: python log_analyzer.py
 Optional parameters:
 --config path_to_config_file  Exmaple of config file you can find in log_analyzer.conf
 
-### Prerequisites
+## Prerequisites
 
 Python version 3.6 and above
 
-### Installing
+## Installing
 
 No special installation procedure is required. 
 
