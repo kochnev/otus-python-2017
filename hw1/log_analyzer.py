@@ -15,21 +15,23 @@ import json
 import time
 import logging
 import argparse
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 from datetime import datetime as dt
 from statistics import median
 
 
-config = {
+
+primary_config = {
     "REPORT_SIZE": 500,
     "REPORT_DIR": "./reports",
     "LOG_DIR": "./log",
     "TS_DIR": "./ts",
+    "THRESHOLD_ERR": 0.3
 }
 
 config_path = '/usr/local/etc/log_analyzer.conf'
 
-logFileInfo = tuple()
+LogInfo = namedtuple('LogInfo', 'date, path')
 
 
 def create_report_html(report_data, report_file_path):
@@ -52,7 +54,7 @@ def create_report_html(report_data, report_file_path):
         raise
 
 
-def get_report_data(parsed_lines):
+def get_report_data(config, parsed_lines):
     """function to get report data in json format"""
     all_count = 0
     all_time = 0
@@ -92,17 +94,25 @@ def get_report_data(parsed_lines):
     return sorted(table, key=lambda k: k['time_sum'], reverse=True)
 
 
-def parse_log(lines):
+def parse_log(config, lines):
     """generator to get tuples(logdate,logpath) by splitting lines"""
+    threshold_err = config["THRESHOLD_ERR"]
+    total = error = 0
     for line in lines:
+        total+=1
         try:
             chunks = line.split()
             url = chunks[6]
             r_time = chunks[-1]
             yield url, r_time
         except:
-            pass
+            error+=1
+    
+    rate = error/float(total)
 
+    if rate > threshold_err:
+        logging.error("Percent of lines parsed with errors exceed the threshold")
+        sys.exit()
 
 def read_log(log_path):
     """generator for reading lines of logfile"""
@@ -117,17 +127,19 @@ def read_log(log_path):
     log.close()
 
 
-def get_logfiles(filepat, top):
+def get_logfiles(log_folder):
     """generator for getting logfiles"""
-    for path, dirlist, filelist in os.walk(top):
-        for name in fnmatch.filter(filelist, filepat):
-            logfile = os.path.join(path, name)
-            match = re.search('nginx-access-ui.log-(\d{4}\d{2}\d{2})\.?', name)
-            day = day_of_log = dt.strptime(match.group(1), '%Y%m%d').date()
-            yield (day, logfile)
+    patc = re.compile('^nginx-access-ui.log-(\d{8})(\.gz)?$')
+    log_files = os.listdir(log_folder)
+    for name in log_files:
+        match = patc.search(name)
+        if match:
+            path = os.path.join(log_folder, name)
+            date = dt.strptime(match.group(1), '%Y%m%d').date()
+            yield LogInfo(date, path)
 
 
-def update_ts():
+def update_ts(config):
     """Update timestamp of the last report"""
     ts = time.time()
     ts_str = dt.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
@@ -153,7 +165,7 @@ def get_config_dict(path_to_config):
         raise Exception("please, check your config file")
 
 
-def check_config():
+def check_config(config):
     try:
         report_size = int(config["REPORT_SIZE"]),
         report_dir = config["REPORT_DIR"],
@@ -164,12 +176,18 @@ def check_config():
         raise Exception("please, check your config file")
 
 
-def main():
+def main(config):
     logging.info("search for logfiles")
-    logfiles = get_logfiles("nginx-access-ui.log-*.gz", config["LOG_DIR"])
+    
+    log_folder = config["LOG_DIR"]
+    if not os.path.exists(log_folder):
+        logging.error("Folder {} does not exist!".format(log_folder))
+        return 
+
+    logfiles = get_logfiles(log_folder)
 
     logging.info("get the latest logfile")
-    latest_logfile = max(logfiles, key=lambda item: item[1])
+    latest_logfile = max(logfiles, key=lambda log: log.date)
 
     logging.info("get the attributes of the latest logfile")
     latest_logfile_name = latest_logfile[1]
@@ -182,22 +200,22 @@ def main():
     logging.info("report name is {0}".format(report_file_path))
 
     if os.path.exists(report_file_path):
-        logging.error("Report for date  {0} already exists".format(latest_log_day))
+        logging.info("Report for date  {0} already exists".format(latest_log_day))
         return
 
     logging.info("read lines from the log file")
     lines = read_log(latest_logfile_name)
 
     logging.info("get parsed lines")
-    parsed_lines = parse_log(lines)
+    parsed_lines = parse_log(config, lines)
 
     logging.info("get report data")
-    report_data = get_report_data(parsed_lines)
+    report_data = get_report_data(config, parsed_lines)
 
     logging.info("generating html report...")
     create_report_html(report_data, report_file_path)
     logging.info("report html has created successfully!")
-    update_ts()
+    update_ts(config)
     logging.info("timestamp has updated")
 
 
@@ -213,25 +231,24 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    arg_config_path = args.config
+    arg_config = get_config_dict(args.config)
+    
+    primary_config.update(arg_config)
 
-    arg_config = get_config_dict(arg_config_path)
-    config.update(arg_config)
-
-    check_config()
-
+    check_config(primary_config)
+    print(primary_config.get("LOGGING","none"))
     logging.basicConfig(
         level=logging.INFO,
         format='[%(asctime)s] %(levelname).1s %(message)s',
         datefmt='%Y.%m.%d %H:%M:%S',
-        filename=config["LOGGING"] if "LOGGING" in config else None
+        filename=primary_config.get("LOGGING")
     )
 
     logging.info("======start=======")
 
     try:
-        main()
+        main(primary_config)
     except Exception as e:
-        logging.exception(e, exc_info=True)
+        logging.exception(e)
 
     logging.info("=====end=====")

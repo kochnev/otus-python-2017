@@ -38,9 +38,9 @@ class TestGetLogfiles(unittest.TestCase):
                             ('/api/1/photogenic_banners/list/?server_name=WIN7RB4', '0.133')]
 
     def test_get_logfile(self):
-        logfiles = log_analyzer.get_logfiles("nginx-access-ui.log-*.gz", self.dir)
-        latest_logfile = max(logfiles, key=lambda item: item[1])
-        latest_logfile_name = os.path.basename(latest_logfile[1])
+        logfiles = log_analyzer.get_logfiles(self.dir)
+        latest_logfile = max(logfiles, key=lambda log: log.date)
+        latest_logfile_name = os.path.basename(latest_logfile.path)
         self.latest_logfile = latest_logfile
 
         self.assertEqual("nginx-access-ui.log-20180104.gz", latest_logfile_name)
