@@ -112,7 +112,6 @@ def parse_log(config, lines):
             error+=1
     
     rate = error/float(total)
-
     if rate > threshold_err:
         logging.error("Percent of lines parsed with errors exceed the threshold")
         sys.exit()
