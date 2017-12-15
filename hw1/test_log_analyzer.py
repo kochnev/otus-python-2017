@@ -34,8 +34,8 @@ class TestGetLogfiles(unittest.TestCase):
 
         # set up for test_parse_logfile
         self.latest_logfile_name = os.path.join(self.dir, "nginx-access-ui.log-20180104.gz")
-        self.sample_list = [('/api/v2/banner/25019354', '0.390'),
-                            ('/api/1/photogenic_banners/list/?server_name=WIN7RB4', '0.133')]
+        self.sample_list = [('/api/v2/banner/25019354',0.39),
+                            ('/api/1/photogenic_banners/list/?server_name=WIN7RB4', 0.133)]
 
     def test_get_logfile(self):
         logfiles = log_analyzer.get_logfiles(self.dir)
@@ -47,7 +47,7 @@ class TestGetLogfiles(unittest.TestCase):
 
     def test_parse_logfile(self):
         lines = log_analyzer.read_log(self.latest_logfile_name)
-        parsed_lines = log_analyzer.parse_log(lines)
+        parsed_lines = log_analyzer.parse_log(log_analyzer.primary_config, lines)
         line_list = list(parsed_lines)
 
         self.assertListEqual(self.sample_list, line_list)

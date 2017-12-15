@@ -8,6 +8,7 @@
 #                     '$request_time';
 
 import os
+import sys
 import fnmatch
 import gzip
 import re
@@ -63,19 +64,17 @@ def get_report_data(config, parsed_lines):
     grouped_urls = defaultdict(list)
     for url, r_time in parsed_lines:
         grouped_urls[url].append(r_time)
-        all_time += float(r_time)
+        all_time += r_time
         all_count += 1
-
     table = []
     for url, time_col in grouped_urls.items():
-        times_float = [float(x) for x in time_col]
-        time_sum = sum(times_float)
+        time_sum = sum(time_col)
         if time_sum > report_size:
             count = len(time_col)
             count_p = (count / all_count) * 100
             time_avg = time_sum / count
-            time_max = max(times_float)
-            time_med = median(times_float)
+            time_max = max(time_col)
+            time_med = median(time_col)
             time_perc = (time_sum / all_count) * 1
 
             row = {
@@ -98,12 +97,16 @@ def parse_log(config, lines):
     """generator to get tuples(logdate,logpath) by splitting lines"""
     threshold_err = config["THRESHOLD_ERR"]
     total = error = 0
+    patc = re.compile('.+"(GET|POST)\s(?P<url>\S+)\sHTTP.+(?P<t_request>\d+\.\d+)$')
+
     for line in lines:
         total+=1
         try:
-            chunks = line.split()
-            url = chunks[6]
-            r_time = chunks[-1]
+            m = patc.search(line)
+            if not m:
+                raise
+            url = m.group('url')
+            r_time = float(m.group('t_request'))
             yield url, r_time
         except:
             error+=1
@@ -236,7 +239,6 @@ if __name__ == "__main__":
     primary_config.update(arg_config)
 
     check_config(primary_config)
-    print(primary_config.get("LOGGING","none"))
     logging.basicConfig(
         level=logging.INFO,
         format='[%(asctime)s] %(levelname).1s %(message)s',
