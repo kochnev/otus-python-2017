@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# import abc
+import abc
 import json
 import datetime
 import logging
@@ -38,19 +38,27 @@ GENDERS = {
 
 
 class Field(object):
-    #  __metaclass__ = abc.ABCMeta
-
-    def __init__(self, required, nullable=False):
+    def __init__(self, required, nullable):
         self.required = required
         self.nullable = nullable
+        self.value = None
 
-    # @abc.abstractproperty
-    # def value(self):
-    #     return
+    def __get__(self, obj, objtype):
+        return self.value
+
+    def __set__(self, obj, value):
+        self.value = value
 
 
 class CharField(Field):
-    pass
+    def __set__(self, obj, value):
+        if not isinstance(value, str):
+            raise TypeError("Must be a string")
+        if not self.nullable and not value:
+            raise ValueError("The field is not nullable")
+        self.value = value
+
+
 
 
 class ArgumentsField(Field):
@@ -80,6 +88,57 @@ class GenderField(Field):
 class ClientIDsField(Field):
     pass
 
+class MetaRequest(type):
+    def __new__(meta, name, bases, dct):
+        fields = {}
+        for k, v in dct.items():
+            if isinstance(v, Field):
+                fields[k] = v
+
+        dct['fields'] = fields
+        
+        return super(MetaRequest, meta).__new__(meta, name, bases, dct)
+
+
+class BaseRequest(object):
+
+    __metaclass__ = MetaRequest
+
+    def __init__(self, **kwargs):
+        self.errors = []
+        self.request = kwargs
+        self.is_cleaned = False
+
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+            
+    def clean(self):
+        for name, f in self.fields.items():
+            if f.required and not self.request.get(name, False):
+                self.errors.append("Field {} is required".format(name))
+                continue
+
+
+        self.is_cleaned = True
+        return
+
+    def is_valid(self):
+        if not self.is_cleaned:
+            self.clean()
+        return not self.errors
+
+
+class MethodRequest(BaseRequest):
+    account = CharField(required=False, nullable=True)
+    login = CharField(required=True, nullable=True)
+    token = CharField(required=True, nullable=True)
+    arguments = ArgumentsField(required=True, nullable=True)
+    method = CharField(required=True, nullable=False)
+
+    @property
+    def is_admin(self):
+        return self.login == ADMIN_LOGIN
+
 
 class ClientsInterestsRequest(object):
     client_ids = ClientIDsField(required=True)
@@ -88,6 +147,7 @@ class ClientsInterestsRequest(object):
     def __init__(self, **kwargs):
         for key, value in kwargs.iteritems():
             setattr(self, key, value)
+
 
 class OnlineScoreRequest(object):
     first_name = CharField(required=False, nullable=True)
@@ -100,22 +160,6 @@ class OnlineScoreRequest(object):
     def __init__(self, **kwargs):
         for key, value in kwargs.iteritems():
             setattr(self, key, value)
-
-
-class MethodRequest(object):
-    account = CharField(required=False, nullable=True)
-    login = CharField(required=True, nullable=True)
-    token = CharField(required=True, nullable=True)
-    arguments = ArgumentsField(required=True, nullable=True)
-    method = CharField(required=True, nullable=False)
-
-    def __init__(self, **kwargs):
-        for key, value in kwargs.iteritems():
-            setattr(self, key, value)
-
-    @property
-    def is_admin(self):
-        return self.login == ADMIN_LOGIN
 
 
 def check_auth(request):
@@ -136,8 +180,9 @@ def method_handler(request, ctx, store):
     response, code = {}, OK
 
     logging.info("method_handler! "+str(request['body']))
-    mr = MethodRequest(**request['body'])
     import pdb; pdb.set_trace()
+    mr = MethodRequest(**request['body'])
+    # import pdb; pdb.set_trace()
     if mr.method == "online_score":
         osr = OnlineScoreRequest(**mr.arguments)
         score = scoring.get_score(store=None, **mr.arguments)
@@ -150,7 +195,6 @@ def method_handler(request, ctx, store):
     else:
         code = BAD_REQUEST
 
-           
     return response, code
 
 
