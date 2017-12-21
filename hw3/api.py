@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 # import abc
-import pdb
 import collections
 import datetime
 import json
@@ -65,6 +64,7 @@ class CharField(Field):
         if not isinstance(value, unicode):
             raise ValueError("{0} must be string".format(self.name))
 
+
 class ArgumentsField(Field):
     def is_valid(self, value):
         if not isinstance(value, collections.Mapping):
@@ -82,8 +82,8 @@ class PhoneField(Field):
         s_val = str(value)
         length = len(s_val)
         if not (s_val.isdigit() and length == 11 and s_val.startswith('7')):
-            raise ValueError("{0} must be string or numer consisting of 11 \
-                             digits and starting with 7")
+            raise ValueError("{0} must be string or numer consisting of 11" 
+                             + "digits and starting with 7".format(self.name))
 
 
 class DateField(Field):
@@ -107,8 +107,7 @@ class BirthDayField(DateField):
 class GenderField(Field):
     def is_valid(self, value):
         if value not in [0, 1, 2]:
-            raise ValueError("{0} must be one of the values 0, 1, \
-                             2".format(self.name))
+            raise ValueError("{0} must be one of the values 0, 1, 2".format(self.name))
 
 
 class ClientIDsField(Field):
@@ -236,23 +235,19 @@ def method_handler(request, ctx, store):
 
     logging.info("method_handler! "+str(request['body']))
     mr = MethodRequest(**request['body'])
-    
-    # pdb.set_trace()
     if not mr.is_valid():
         return ' '.join(mr.errors), INVALID_REQUEST
     
-    pdb.set_trace()
     if not check_auth(mr):
         return "Forbidden", FORBIDDEN
 
-    # import pdb; pdb.set_trace()
     if mr.method == "online_score":
         osr = OnlineScoreRequest(**mr.arguments)
         if not osr.is_valid():
             return ' '.join(osr.errors), INVALID_REQUEST
         
         ctx['has'] = osr.get_not_empty_fields()
-        if request.is_admin:
+        if mr.is_admin:
             score = 42
         else:
             score = scoring.get_score(None, osr.phone, osr.email,
@@ -266,7 +261,7 @@ def method_handler(request, ctx, store):
         if not cir.is_valid():
             return ' '.join(cir.errors), INVALID_REQUEST
 
-        ctx['nclients'] = len(self.client_ids)
+        ctx['nclients'] = len(cir.client_ids)
 
         for cid in cir.client_ids:
             interests = scoring.get_interests(None, cid)
