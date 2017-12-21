@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import abc
-import json
+# import abc
+import collections
 import datetime
+import json
 import logging
 import hashlib
 import uuid
@@ -38,65 +39,94 @@ GENDERS = {
 
 
 class Field(object):
-    def __init__(self, required, nullable):
+    def __init__(self, required, nullable=False):
         self.required = required
         self.nullable = nullable
+        self.name = None
         self.value = None
 
     def __get__(self, obj, objtype):
         return self.value
 
+    def is_valid(self, value):
+        return
+
     def __set__(self, obj, value):
+        self.is_valid(self, value)
         self.value = value
+
+    def __set_name__(self, name):
+        self.name = name
 
 
 class CharField(Field):
-    def __set__(self, obj, value):
+    def is_valid(self, value):
         if not isinstance(value, str):
-            raise TypeError("Must be a string")
-        if not self.nullable and not value:
-            raise ValueError("The field is not nullable")
-        self.value = value
-
-
+            raise ValueError("{0} must be string".format(self.name))
 
 
 class ArgumentsField(Field):
-    pass
+    def is_valid(self, value):
+        if not isinstance(value, collections.Mapping):
+            raise ValueError("{0} must be dictionary".format(self.name))
 
 
 class EmailField(CharField):
-    pass
+    def is_valid(self, value):
+        if '@' not in value:
+            raise ValueError("{0} must be email address".format(self.name))
 
 
 class PhoneField(Field):
-    pass
+    def is_valid(self, value):
+        s_val = str(value)
+        length = len(s_val)
+        if not (s_val.isdigit() and length == 11 and s_val.startswith('7')):
+            raise ValueError("{0} must be string or numer consisting of 11 \
+                             digits and starting with 7")
 
 
 class DateField(Field):
-    pass
+    def is_valid(self, value):
+        try:
+            datetime.datetime.strptime(value, '%d.%m.%Y').date()
+        except ValueError:
+            raise ValueError("{0} must be date (DD.MM.YYYY)".format(self.name))
 
 
-class BirthDayField(Field):
-    pass
+class BirthDayField(DateField):
+    def is_valid(self, value):
+        super(BirthDayField, self).is_valid(value)
+        current_year = datetime.datetime.now().year
+        value_year = datetime.datetime.strptime(value, '%d.%m.%Y').date().year
+        if current_year - value_year > 70:
+            raise ValueError("{0} can not be more than 70 years from current \
+                             time".format(self.name))
 
 
 class GenderField(Field):
-    pass
+    def is_valid(self, value):
+        if value not in [0, 1, 2]:
+            raise ValueError("{0} must be one of the values 0, 1, \
+                             2".format(self.name))
 
 
 class ClientIDsField(Field):
-    pass
+    def is_valid(self, value):
+        if not isinstance(value, list):
+            raise ValueError("{0} must be array of numbers".format(self.name))
+
 
 class MetaRequest(type):
     def __new__(meta, name, bases, dct):
         fields = {}
-        for k, v in dct.items():
-            if isinstance(v, Field):
-                fields[k] = v
+        for attr, obj in dct.items():
+            if isinstance(obj, Field):
+                fields[attr] = obj
+                obj.__set_name__(attr)
 
         dct['fields'] = fields
-        
+
         return super(MetaRequest, meta).__new__(meta, name, bases, dct)
 
 
@@ -109,16 +139,13 @@ class BaseRequest(object):
         self.request = kwargs
         self.is_cleaned = False
 
-        for key, value in kwargs.items():
-            setattr(self, key, value)
-            
     def clean(self):
         for name, f in self.fields.items():
             if f.required and not self.request.get(name, False):
                 self.errors.append("Field {} is required".format(name))
                 continue
 
-
+            setattr(self, name, self.request[name])
         self.is_cleaned = True
         return
 
@@ -140,16 +167,12 @@ class MethodRequest(BaseRequest):
         return self.login == ADMIN_LOGIN
 
 
-class ClientsInterestsRequest(object):
+class ClientsInterestsRequest(BaseRequest):
     client_ids = ClientIDsField(required=True)
     date = DateField(required=False, nullable=True)
-    
-    def __init__(self, **kwargs):
-        for key, value in kwargs.iteritems():
-            setattr(self, key, value)
 
 
-class OnlineScoreRequest(object):
+class OnlineScoreRequest(BaseRequest):
     first_name = CharField(required=False, nullable=True)
     last_name = CharField(required=False, nullable=True)
     email = EmailField(required=False, nullable=True)
