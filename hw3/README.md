@@ -4,11 +4,11 @@ Structure of request:
 
 {"account": "", "login": "", "method": "", "token": "", "arguments": {}}
 
-account ‑ sting, not required, can be empty
-login ‑ sting, required, can be empty
-method ‑ sting, required, can be empty
-token ‑ sting, required, can be empty
-arguments ‑ dict (json object), required, can be empty
+* account ‑ sting, not required, can be empty
+* login ‑ sting, required, can be empty
+* method ‑ sting, required, can be empty
+* token ‑ sting, required, can be empty
+* arguments ‑ dict (json object), required, can be empty
 
 
 ## Getting Starter
