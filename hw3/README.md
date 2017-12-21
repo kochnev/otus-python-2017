@@ -1,8 +1,8 @@
 Examples:
 
-curl -X POST  -H "Content-Type: application/json" -d '{"account": "horns&hoofs", "login": "h&f","method": "online_score","token":"cc9ce545bcd144300fe9efc28e65d415b923ebb6be1e19d2750a2c03e80dd209a27954dca045e5bb12418e7d89b6d718a9e35af3",
+curl -X POST  -H "Content-Type: application/json" -d '{"account": "admin_acc", "login":"admin","method": "online_score","token":"eed94f65ea73f6429ef74372307357652a4a5291906eb042e27401c29eebe7e6b510a7a6cb5cab32107aded8bff4b7593ff7db40ab988e20e29c296f819e2652",
  "arguments": {"phone": "79175002040", "email": "ivanov@otus.ru", "first_name": "Ivanov",
-"last_name": "Иванов", "birthday": "01.01.1990", "gender": 1}}' http://127.0.0.1:8080/method/
+"last_name": "Иванов", "birthday": "01.01.199", "gender": 1}}' http://127.0.0.1:8080/method/
 
 curl -X POST  -H "Content-Type: application/json" -d '{"account": "horns&hoofs", "login": "admin",
 "method": "clients_interests", "token":

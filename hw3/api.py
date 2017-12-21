@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # import abc
+import pdb
 import collections
 import datetime
 import json
@@ -52,7 +53,7 @@ class Field(object):
         return
 
     def __set__(self, obj, value):
-        self.is_valid(self, value)
+        self.is_valid(value)
         self.value = value
 
     def __set_name__(self, name):
@@ -61,9 +62,8 @@ class Field(object):
 
 class CharField(Field):
     def is_valid(self, value):
-        if not isinstance(value, str):
+        if not isinstance(value, unicode):
             raise ValueError("{0} must be string".format(self.name))
-
 
 class ArgumentsField(Field):
     def is_valid(self, value):
@@ -141,13 +141,23 @@ class BaseRequest(object):
 
     def clean(self):
         for name, f in self.fields.items():
-            if f.required and not self.request.get(name, False):
-                self.errors.append("Field {} is required".format(name))
-                continue
+            value = self.request.get(name)
+            if not value:
+                if f.required:
+                    self.errors.append("Field {0} is required".format(name))
+                    continue
+            if value in ([], {}, '', None):
+                if f.nullable:
+                    self.errors.append("Field {0} is not nullable".format(name))
+                    continue
 
-            setattr(self, name, self.request[name])
+            try:
+                setattr(self, name, value)
+            except ValueError as e:
+                self.errors.append(str(e))
+            
         self.is_cleaned = True
-        return
+
 
     def is_valid(self):
         if not self.is_cleaned:
@@ -173,45 +183,91 @@ class ClientsInterestsRequest(BaseRequest):
 
 
 class OnlineScoreRequest(BaseRequest):
+    required_pairs = (
+        ('phone', 'email'),
+        ('first_name', 'last_name'),
+        ('gender', 'birthday')
+    )
+
     first_name = CharField(required=False, nullable=True)
     last_name = CharField(required=False, nullable=True)
     email = EmailField(required=False, nullable=True)
     phone = PhoneField(required=False, nullable=True)
     birthday = BirthDayField(required=False, nullable=True)
     gender = GenderField(required=False, nullable=True)
+    
+    def get_not_empty_fields(self):
+        return  [name for name in self.fields if getattr(self, name) not in ([], {}, '')]
 
-    def __init__(self, **kwargs):
-        for key, value in kwargs.iteritems():
-            setattr(self, key, value)
 
+    def is_valid(self):
+        super(OnlineScoreRequest, self).is_valid()
+        if len(self.errors) > 0:
+            return False
+
+        not_empty_fields = self.get_not_empty_fields()
+        is_found = False
+        for pair in self.required_pairs:
+            if set(pair).issubset(not_empty_fields):
+                is_found = True
+                break
+
+        if not is_found:
+            self.errors.append("One of pairs {0} must \
+                               exist".format(self.required_pairs))
+            return False
+
+        return True 
+
+        
 
 def check_auth(request):
     if request.login == ADMIN_LOGIN:
-        digest = hashlib.sha512(datetime.datetime.now().strftime("%Y%m%d%H") /
-                                + ADMIN_SALT).hexdigest()
+        digest = hashlib.sha512(datetime.datetime.now().strftime("%Y%m%d%H") + str(ADMIN_SALT)).hexdigest()
     else:
-        digest = hashlib.sha512(request.account /
-                                + request.login + SALT).hexdigest()
+        digest = hashlib.sha512(request.account + request.login + SALT).hexdigest()
     if digest == request.token:
         return True
     return False
 
 
 def method_handler(request, ctx, store):
-    # response, code = None, None
-    # return response, code
     response, code = {}, OK
 
     logging.info("method_handler! "+str(request['body']))
-    import pdb; pdb.set_trace()
     mr = MethodRequest(**request['body'])
+    
+    # pdb.set_trace()
+    if not mr.is_valid():
+        return ' '.join(mr.errors), INVALID_REQUEST
+    
+    pdb.set_trace()
+    if not check_auth(mr):
+        return "Forbidden", FORBIDDEN
+
     # import pdb; pdb.set_trace()
     if mr.method == "online_score":
         osr = OnlineScoreRequest(**mr.arguments)
-        score = scoring.get_score(store=None, **mr.arguments)
+        if not osr.is_valid():
+            return ' '.join(osr.errors), INVALID_REQUEST
+        
+        ctx['has'] = osr.get_not_empty_fields()
+        if request.is_admin:
+            score = 42
+        else:
+            score = scoring.get_score(None, osr.phone, osr.email,
+                                      osr.birthday, osr.gender, osr.first_name,
+                                      osr.last_name)
+
         response["score"] = score
+
     elif mr.method == "clients_interests":
         cir = ClientsInterestsRequest(**mr.arguments)
+        if not cir.is_valid():
+            return ' '.join(cir.errors), INVALID_REQUEST
+
+        ctx['nclients'] = len(self.client_ids)
+
         for cid in cir.client_ids:
             interests = scoring.get_interests(None, cid)
             response[cid] = interests
