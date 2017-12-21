@@ -126,7 +126,7 @@ def parse_log(config, lines):
             error += 1
 
     ftotal = float(total)
-    rate = error / ftotal
+    rate = error/ftotal
     if rate > threshold_err:
         logging.error("Percent of lines parsed \
                             with errors exceed the threshold")
@@ -184,17 +184,6 @@ def get_config_dict(path_to_config):
         with open(path_to_config, 'r') as f:
             return json.load(f)
     except json.JSONDecodeError:
-        logging.error("please, check your config file")
-        raise Exception("please, check your config file")
-
-
-def check_config(config):
-    try:
-        int(config["REPORT_SIZE"])
-        config["REPORT_DIR"]
-        config["LOG_DIR"]
-        config["TS_DIR"]
-    except Exception:
         logging.error("please, check your config file")
         raise Exception("please, check your config file")
 
@@ -258,7 +247,6 @@ if __name__ == "__main__":
 
     primary_config.update(arg_config)
 
-    check_config(primary_config)
     logging.basicConfig(
         level=logging.INFO,
         format='[%(asctime)s] %(levelname).1s %(message)s',
