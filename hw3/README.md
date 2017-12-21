@@ -1,8 +1,5 @@
 # Scoring API
 
-<<<<<<< HEAD
-curl -X POST  -H "Content-Type: application/json" -d '{"account": "admin_acc", "login":"admin","method": "online_score","token":"58295e281644ac071c9548fbea52aca8a3522b6480dc79a5f9cf01ebfadbf6f6eb35d3820f46df30db2941f7b28410b3da9795f724f6be6fd1a21fa5049eb620",
-=======
 Structure of request:
 
 {"account": "", "login": "", "method": "", "token": "", "arguments": {}}
