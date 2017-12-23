@@ -10,7 +10,6 @@
 #     '$request_time';
 
 import os
-import sys
 import gzip
 import re
 import json
@@ -130,7 +129,7 @@ def parse_log(config, lines):
     if rate > threshold_err:
         logging.error("Percent of lines parsed \
                             with errors exceed the threshold")
-        sys.exit()
+        raise Exception
 
 
 def read_log(log_path):
@@ -146,16 +145,24 @@ def read_log(log_path):
     log.close()
 
 
-def get_logfiles(log_folder):
+def get_latest_logfiles(log_folder):
     """generator for getting logfiles"""
     patc = re.compile('^nginx-access-ui.log-(\d{8})(\.gz)?$')
     log_files = os.listdir(log_folder)
+    filtered = []
     for name in log_files:
         match = patc.search(name)
         if match:
             path = os.path.join(log_folder, name)
             date = dt.strptime(match.group(1), '%Y%m%d').date()
-            yield LogInfo(date, path)
+            filtered.append(LogInfo(date, path))
+
+    if not filtered:
+        msg = "There are not logfiles in {0}".format(log_folder)
+        logging.error(msg)
+        raise Exception(msg)
+
+    return max(filtered, key=lambda log: log.date)
 
 
 def update_ts(config):
@@ -192,17 +199,12 @@ def main(config):
     logging.info("search for logfiles")
     log_folder = config["LOG_DIR"]
     if not os.path.exists(log_folder):
-        logging.error("Folder {} does not exist!".format(log_folder))
-        return
-
-    logfiles = get_logfiles(log_folder)
+        logging.error("Folder {0} does not exist!".format(log_folder))
 
     logging.info("get the latest logfile")
-    latest_logfile = max(logfiles, key=lambda log: log.date)
+    latest_logfile = get_latest_logfiles(log_folder)
 
-    logging.info("get the attributes of the latest logfile")
     logging.info("the latest log file is {0}".format(latest_logfile.path))
-
     report_name = "report_{0}.html".format(latest_logfile.date)
     report_dir = config["REPORT_DIR"]
     report_path = os.path.join(report_dir, report_name)
