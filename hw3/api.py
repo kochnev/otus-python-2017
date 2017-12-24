@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# import abc
+import abc
 import collections
 import datetime
 import json
@@ -39,6 +39,9 @@ GENDERS = {
 
 
 class Field(object):
+
+    __metaclass__ = abc.ABCMeta
+
     def __init__(self, required, nullable=False):
         self.required = required
         self.nullable = nullable
@@ -47,7 +50,8 @@ class Field(object):
 
     def __get__(self, obj, objtype):
         return self.value
-
+    
+    @abc.abstractmethod
     def is_valid(self, value):
         return
 
@@ -63,7 +67,6 @@ class CharField(Field):
     def is_valid(self, value):
         if not isinstance(value, unicode):
             raise ValueError("{0} must be string".format(self.name))
-
 
 class ArgumentsField(Field):
     def is_valid(self, value):
@@ -163,6 +166,10 @@ class BaseRequest(object):
             self.clean()
         return not self.errors
 
+    @abc.abstractmethod
+    def execute(self, ctx, is_admin):
+        return
+
 
 class MethodRequest(BaseRequest):
     account = CharField(required=False, nullable=True)
@@ -175,10 +182,23 @@ class MethodRequest(BaseRequest):
     def is_admin(self):
         return self.login == ADMIN_LOGIN
 
+    def execute(self, ctx, is_admin):
+        pass
+
 
 class ClientsInterestsRequest(BaseRequest):
     client_ids = ClientIDsField(required=True)
     date = DateField(required=False, nullable=True)
+    
+    def execute(self, ctx, is_admin):
+        response = {}
+        ctx['nclients'] = len(self.client_ids)
+        for cid in self.client_ids:
+            interests = scoring.get_interests(None, cid)
+            response[cid] = interests
+
+        return response
+
 
 
 class OnlineScoreRequest(BaseRequest):
@@ -216,9 +236,30 @@ class OnlineScoreRequest(BaseRequest):
                                exist".format(self.required_pairs))
             return False
 
-        return True 
+        return True
 
-        
+    def execute(self, ctx, is_admin):
+        response = {}
+        ctx['has'] = self.get_not_empty_fields()
+        if is_admin:
+            score = 42
+        else:
+            score = scoring.get_score(None, self.phone, self.email,
+                                      self.birthday, self.gender, self.first_name,
+                                      self.last_name)
+        response["score"] = score
+
+        return response
+
+
+def get_handler_request(method, **kwargs):
+    if method == "online_score":
+        return OnlineScoreRequest(**kwargs)
+    elif method == "clients_interests":
+        return ClientsInterestsRequest(**kwargs)
+    else:
+        return None
+
 
 def check_auth(request):
     if request.login == ADMIN_LOGIN:
@@ -240,35 +281,16 @@ def method_handler(request, ctx, store):
     
     if not check_auth(mr):
         return "Forbidden", FORBIDDEN
+    
+    handler = get_handler_request(mr.method, **mr.arguments)
+    if not handler:
+        return "Wrong method", BAD_REQUEST
 
-    if mr.method == "online_score":
-        osr = OnlineScoreRequest(**mr.arguments)
-        if not osr.is_valid():
-            return ' '.join(osr.errors), INVALID_REQUEST
-        
-        ctx['has'] = osr.get_not_empty_fields()
-        if mr.is_admin:
-            score = 42
-        else:
-            score = scoring.get_score(None, osr.phone, osr.email,
-                                      osr.birthday, osr.gender, osr.first_name,
-                                      osr.last_name)
-
-        response["score"] = score
-
-    elif mr.method == "clients_interests":
-        cir = ClientsInterestsRequest(**mr.arguments)
-        if not cir.is_valid():
-            return ' '.join(cir.errors), INVALID_REQUEST
-
-        ctx['nclients'] = len(cir.client_ids)
-
-        for cid in cir.client_ids:
-            interests = scoring.get_interests(None, cid)
-            response[cid] = interests
+    if handler.is_valid():
+        response = handler.execute(ctx, mr.is_admin)
     else:
-        code = BAD_REQUEST
-
+        return ' '.join(handler.errors), INVALID_REQUEST
+       
     return response, code
 
 
