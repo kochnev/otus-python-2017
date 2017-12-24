@@ -129,7 +129,7 @@ def parse_log(config, lines):
     if rate > threshold_err:
         logging.error("Percent of lines parsed \
                             with errors exceed the threshold")
-        raise Exception
+        raise RuntimeError
 
 
 def read_log(log_path):
@@ -158,9 +158,7 @@ def get_latest_logfiles(log_folder):
             filtered.append(LogInfo(date, path))
 
     if not filtered:
-        msg = "There are not logfiles in {0}".format(log_folder)
-        logging.error(msg)
-        raise Exception(msg)
+        return None
 
     return max(filtered, key=lambda log: log.date)
 
@@ -203,6 +201,8 @@ def main(config):
 
     logging.info("get the latest logfile")
     latest_logfile = get_latest_logfiles(log_folder)
+    if not latest_logfile:
+        logging.error("There are not logfiles in {0}".format(log_folder))
 
     logging.info("the latest log file is {0}".format(latest_logfile.path))
     report_name = "report_{0}.html".format(latest_logfile.date)
