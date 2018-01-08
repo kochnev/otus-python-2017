@@ -10,6 +10,22 @@ import posixpath
 
 __version__ = "0.1"
 
+# Default error message template
+DEFAULT_404_MESSAGE = b"""\
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=utf-8">
+        <title>404 - Error response</title>
+    </head>
+    <body>
+        <h1>Error response</h1>
+        <p>Error code: 404 </p>
+        <p>Message: File not found.</p>
+    </body>
+</html>
+"""
+
+
 class HTTPServer:
 
     address_family = socket.AF_INET
@@ -54,7 +70,15 @@ class HTTPServer:
 
 class MainHTTPHandler:
     extensions_map = {
+        '': 'application/octet-stream',
         '.html': 'text/html',
+        '.css': 'text/css',
+        '.js': 'text/javascript',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.png': 'image/png',
+        '.gif': 'image/gif',
+        '.swf': 'application/x-shockwave-flash',
     }
 
     sys_version = "Python/" + sys.version.split()[0]
@@ -71,12 +95,11 @@ class MainHTTPHandler:
 
     def handle(self):
         self.read_request()
-        logging.info(self.request_line)
+        logging.info("Request line: {0}".format(self.request_line))
 
         self.parse_request()
         logging.info("method:{0}, location:{1}, version:{2}".format
                      (self.method, self.location, self.protocol_version))
-
         if self.method == 'GET':
             f = self.process_location()
             if f:
@@ -84,7 +107,6 @@ class MainHTTPHandler:
                     self.body = f.read()
                 finally:
                     f.close()
-
         elif self.method == 'HEAD':
             f = self.process_location()
             if f:
@@ -94,31 +116,27 @@ class MainHTTPHandler:
                                 Allowed')
             self.end_headers()
 
-        
-
-        logging.info(self.response)
         self.build_response()
         self.send_response()
-    
+
     def process_location(self):
         """Common code for GET and HEAD commands"""
-
         path = self.translate_path(self.location)
-        logging.info(path)
+        logging.info("Path: {0}".format(path))
         f = None
         if os.path.isdir(path):
             index = os.path.join(path, "index.html")
             if os.path.exists(index):
                 path = index
-        logging.info(path) 
+                logging.info("Path after edit: {0}".format(path))
+
         mimetype = self.get_mimetype(path)
         try:
             f = open(path, 'rb')
         except OSError:
             self.start_response(self.protocol_version, 404, 'File not found')
+            self.body = DEFAULT_404_MESSAGE
             self.end_headers()
-            self.build_response()
-            self.send_response()
             return None
         try:
             self.start_response(self.protocol_version, 200, 'OK')
@@ -137,18 +155,25 @@ class MainHTTPHandler:
     def get_mimetype(self, path):
         """Guess mimetype of a file by its extension."""
         base, ext = posixpath.splitext(path)
-        return self.extensions_map[ext]
+        if ext in self.extensions_map:
+            return self.extensions_map[ext]
+        else:
+            return self.extensions_map['']
 
     def build_response(self):
+        """Join request line, list of headers and body into binary string"""
         self.response = b"".join(self.headers)
         if self.body:
             self.response += self.body
 
     def send_response(self):
+        """Send rensponse and close client socket"""
+        logging.info("Response {0}".format(self.response))
         self.conn.sendall(self.response)
         self.conn.close()
-    
+
     def read_request(self):
+        """Read request from the client socket"""
         data = b''
         while True:
             r = self.conn.recv(25)
@@ -170,14 +195,14 @@ class MainHTTPHandler:
 
     def translate_path(self, path):
         """Translate a /-separated PATH to the local filename syntax."""
-
-        path = path.split('?',1)[0]
-        path = path.split('#',1)[0]
+        path = path.split('?', 1)[0]
+        path = path.split('#', 1)[0]
 
         trailing_slash = path.rstrip().endswith('/')
         path = urllib.parse.unquote(path)
         path = posixpath.normpath(path)
         words = path.split('/')
+        words = filter(None, words)
         path = self.document_root
         for word in words:
             if word in (os.curdir, os.pardir):
@@ -186,8 +211,6 @@ class MainHTTPHandler:
         if trailing_slash:
             path += '/'
         return path
-
-        
 
     def start_response(self, http_version, code, message):
         self.headers.append(("%s %d %s\r\n" % (http_version, code,
@@ -228,7 +251,6 @@ if __name__ == "__main__":
         '[default:all interfaces]')
 
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    print(base_dir)
     parser.add_argument(
         '--root',
         '-r',
@@ -260,7 +282,10 @@ if __name__ == "__main__":
         filename=args.log
     )
 
-    with HTTPServer(server_address, MainHTTPHandler, args.workers, args.root) as httpd:
+    with HTTPServer(server_address,
+                    MainHTTPHandler,
+                    args.workers,
+                    args.root) as httpd:
         try:
             httpd.serve_forever()
         except KeyboardInterrupt:
