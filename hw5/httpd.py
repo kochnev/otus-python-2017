@@ -11,7 +11,7 @@ import posixpath
 __version__ = "0.1"
 
 # Default error message template
-DEFAULT_404_MESSAGE = b"""\
+DEFAULT_ERROR_MESSAGE = """\
 <html>
     <head>
         <meta http-equiv="Content-Type" content="text/html;charset=utf-8">
@@ -19,11 +19,13 @@ DEFAULT_404_MESSAGE = b"""\
     </head>
     <body>
         <h1>Error response</h1>
-        <p>Error code: 404 </p>
-        <p>Message: File not found.</p>
+        <p>Error code: %(code)d</p>
+        <p>Message: %(message)s</p>
     </body>
 </html>
 """
+
+DEFAULT_ERROR_CONTENT_TYPE = "text/html;charset=utf-8"
 
 
 class HTTPServer:
@@ -69,6 +71,17 @@ class HTTPServer:
 
 
 class MainHTTPHandler:
+    """
+    The order to create a response:
+        1. call start_response
+        2. call set_header (a function to set one header)
+        3. call end_headers
+        3. set value of self.body
+        3. call build_response
+        4. call send_response
+
+    """
+
     extensions_map = {
         '': 'application/octet-stream',
         '.html': 'text/html',
@@ -84,6 +97,8 @@ class MainHTTPHandler:
     sys_version = "Python/" + sys.version.split()[0]
     server_version = "HTTPServer/" + __version__
     protocol_version = "HTTP/1.1"
+    error_message = DEFAULT_ERROR_MESSAGE
+    error_content_type = DEFAULT_ERROR_CONTENT_TYPE
 
     def __init__(self, conn, document_root):
         self.conn = conn
@@ -96,28 +111,19 @@ class MainHTTPHandler:
     def handle(self):
         self.read_request()
         logging.info("Request line: {0}".format(self.request_line))
+        try:
+            self.parse_request()
+        except Exception:
+            self.send_error(400, 'Bad Request')
+            return
 
-        self.parse_request()
         logging.info("method:{0}, location:{1}, version:{2}".format
                      (self.method, self.location, self.protocol_version))
-        if self.method == 'GET':
-            f = self.process_location()
-            if f:
-                try:
-                    self.body = f.read()
-                finally:
-                    f.close()
-        elif self.method == 'HEAD':
-            f = self.process_location()
-            if f:
-                f.close()
-        else:
-            self.start_response(self.protocol_version, 405, 'Method Not \
-                                Allowed')
-            self.end_headers()
 
-        self.build_response()
-        self.send_response()
+        if self.method in ('GET', 'HEAD'):
+            self.process_location()
+        else:
+            self.send_error(405, 'Method Not Allowed')
 
     def process_location(self):
         """Common code for GET and HEAD commands"""
@@ -129,25 +135,27 @@ class MainHTTPHandler:
             if os.path.exists(index):
                 path = index
                 logging.info("Path after edit: {0}".format(path))
+            else:
+                self.send_error(403, 'Forbidden')
+                return
 
         mimetype = self.get_mimetype(path)
         try:
             f = open(path, 'rb')
         except OSError:
-            self.start_response(self.protocol_version, 404, 'File not found')
-            self.body = DEFAULT_404_MESSAGE
-            self.end_headers()
-            return None
+            self.send_error(404, 'File not found')
+            return
         try:
             self.start_response(self.protocol_version, 200, 'OK')
-            self.set_header("Server", self.version_string())
-            self.set_header("Connection", "Close")
-            self.set_header("Date", self.date_time_string())
             self.set_header("Content-Type", mimetype)
             fs = os.fstat(f.fileno())
             self.set_header("Content-Length", str(fs[6]))
             self.end_headers()
-            return f
+            if self.method == 'GET':
+                self.body = f.read()
+            self.build_response()
+            self.send_response()
+            f.close()
         except Exception:
             f.close()
             raise
@@ -168,9 +176,29 @@ class MainHTTPHandler:
 
     def send_response(self):
         """Send rensponse and close client socket"""
-        logging.info("Response {0}".format(self.response))
+        logging.info("Response first line: {0}".format(self.headers[0]))
         self.conn.sendall(self.response)
         self.conn.close()
+
+    def send_error(self, code, message):
+        """Send an error replay.
+
+        Arguments are
+        * code: an HTTP error code 3 digits
+        * message: one line reason phrase
+
+        """
+        self.start_response(self.protocol_version, code, message)
+        content = (self.error_message % {
+            'code': code,
+            'message': message,
+        })
+        self.body = content.encode('utf-8', 'replace')
+        self.set_header("Content-Length", str(len(self.body)))
+        self.set_header("Content-Type", self.error_content_type)
+        self.end_headers()
+        self.build_response()
+        self.send_response()
 
     def read_request(self):
         """Read request from the client socket"""
@@ -215,6 +243,9 @@ class MainHTTPHandler:
     def start_response(self, http_version, code, message):
         self.headers.append(("%s %d %s\r\n" % (http_version, code,
                                                message)).encode("utf-8"))
+        self.set_header("Server", self.version_string())
+        self.set_header("Connection", "Close")
+        self.set_header("Date", self.date_time_string())
 
     def set_header(self, keyword, value):
         self.headers.append(("%s: %s\r\n" % (keyword, value)).encode("utf-8"))
