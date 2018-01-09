@@ -55,12 +55,12 @@ Implementation of Simple HTTP Web server. Multithreading architecture was used.
 
  Connection Times (ms)
  
-           |   min   | mean[+/-sd] | median  | max |
- ----------|--------|------------|--------|-----|
- Connect:   |     0  | 10 407.8    |  0   |41243
- Processing: |    2  | 234 3051.9   |  34  |110021
- Waiting:    |    0  | 159 1057.0    | 33  | 54323
- Total:      |    2  | 244 3082.5   |  34  |110026
+            |   min | mean[+/-sd] | median  | max |
+ -----------|-------|-------------|---------|-----|
+ Connect:   |    0  | 10 407.8    |  0      |41243
+ Processing:|    2  | 234 3051.9  |  34     |110021
+ Waiting:   |    0  | 159 1057.0  | 33      | 54323
+ Total:     |    2  | 244 3082.5  |  34     |110026
 
 Percentage of the requests served within a certain time (ms)
        |
