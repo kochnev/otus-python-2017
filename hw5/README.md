@@ -1,7 +1,7 @@
 Simple HTTP web server
 =====================
 
-Implement a Web server. Multithreading architecture was used.
+Implementation of Simple HTTP Web server. Multithreading architecture was used.
 
 ## Description ##
 
@@ -36,10 +36,8 @@ Implement a Web server. Multithreading architecture was used.
   Server Software:    |    HTTPServer/0.1
  Server Hostname:    |    localhost
  Server Port:        |    8080
-
  Document Path:      |   /
  Document Length:    |    612 bytes
-
  Concurrency Level:  |    100
  Time taken for tests:|   138.085 seconds
  Complete requests:   |  50000
@@ -57,7 +55,7 @@ Implement a Web server. Multithreading architecture was used.
 
  Connection Times (ms)
  
-           |    min | mean[+/-sd]| median |  max|
+           |   min   | mean[+/-sd] | median  | max |
  ----------|--------|------------|--------|-----|
  Connect:   |     0  | 10 407.8    |  0   |41243
  Processing: |    2  | 234 3051.9   |  34  |110021
