@@ -31,8 +31,7 @@ Implementation of Simple HTTP Web server. Multithreading architecture was used.
 
 
 ## Result of ab test ##
-'''
-
+```
 Server Software:        HTTPServer/0.1
 Server Hostname:        localhost
 Server Port:            8080
@@ -69,5 +68,4 @@ Percentage of the requests served within a certain time (ms)
   98%   1284
   99%   3137
  100%  110026 (longest request)
- 
-'''
+```
