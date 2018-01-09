@@ -31,6 +31,7 @@ Implement a Web server. Multithreading architecture was used.
 
 
 ## Result of ab test ##
+  Name                | Value
 ----------------------|-----------------
   Server Software:    |    HTTPServer/0.1
 * Server Hostname:        localhost
