@@ -58,13 +58,13 @@ Implement a Web server. Multithreading architecture was used.
 * Waiting:        0  159 1057.0     33   54323
 * Total:          2  244 3082.5     34  110026
 
-* Percentage of the requests served within a certain time (ms)
-  50%     34
-  66%     38
-  75%     42
-  80%     44
-  90%     68
-  95%   1062
-  98%   1284
-  99%   3137
-  100%  110026 (longest request)
+Percentage of the requests served within a certain time (ms)
+  50%  |   34
+  66%  |   38
+  75%  |   42
+  80%  |   44
+  90%  |   68
+  95%  | 1062
+  98%  | 1284
+  99%  | 3137
+  100% | 110026 (longest request)
