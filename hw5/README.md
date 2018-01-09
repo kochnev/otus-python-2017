@@ -52,19 +52,19 @@ Implement a Web server. Multithreading architecture was used.
 * Transfer rate:          272.09 [Kbytes/sec] received
 
 * Connection Times (ms)
-*               min  mean[+/-sd] median   max
+               min  mean[+/-sd] median   max
 * Connect:        0   10 407.8      0   41243
 * Processing:     2  234 3051.9     34  110021
 * Waiting:        0  159 1057.0     33   54323
 * Total:          2  244 3082.5     34  110026
 
 * Percentage of the requests served within a certain time (ms)
-* 50%     34
-* 66%     38
-* 75%     42
-* 80%     44
-* 90%     68
-* 95%   1062
-* 98%   1284
-* 99%   3137
-* 100%  110026 (longest request)
+  50%     34
+  66%     38
+  75%     42
+  80%     44
+  90%     68
+  95%   1062
+  98%   1284
+  99%   3137
+  100%  110026 (longest request)
