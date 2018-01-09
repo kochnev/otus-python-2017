@@ -7,6 +7,7 @@ import time
 import email.utils
 import urllib.parse
 import posixpath
+import threading
 
 __version__ = "0.1"
 
@@ -43,7 +44,7 @@ class HTTPServer:
         self.max_workers = max_workers
         self.document_root = document_root
         self.socket = socket.socket(self.address_family, self.socket_type)
-        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, True)
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.socket.bind(self.server_address)
 
         self.socket.listen(self.request_queue_size)
@@ -51,6 +52,12 @@ class HTTPServer:
     def serve_forever(self):
         logging.info("Server is running on {0}".format(self.server_address))
         print("\nPress Ctrl+C to shut down server")
+        for _ in range(self.max_workers):
+            client_handler = threading.Thread(
+                target=self.handle_client_connection)
+            client_handler.start()
+
+    def handle_client_connection(self):
         while True:
             conn, client_address = self.socket.accept()
             logging.info("Recived connection {0}".format(client_address))
@@ -66,8 +73,9 @@ class HTTPServer:
         self.server_close()
 
     def server_close(self):
-        self.socket.close()
-        self.socket = None
+        #self.socket.close()
+        #self.socket = None
+        pass
 
 
 class MainHTTPHandler:
@@ -109,7 +117,12 @@ class MainHTTPHandler:
         self.handle()
 
     def handle(self):
-        self.read_request()
+        try:
+            self.read_request()
+        except Exception:
+            self.send_error(400, 'Bad Request')
+            return
+
         logging.info("Request line: {0}".format(self.request_line))
         try:
             self.parse_request()
@@ -271,7 +284,7 @@ if __name__ == "__main__":
         '--port',
         '-p',
         type=int,
-        default=8000,
+        default=80,
         help='Specify alternate port [default: 8000]'
     )
     parser.add_argument(
@@ -299,7 +312,7 @@ if __name__ == "__main__":
         '--workers',
         '-w',
         type=int,
-        default=3,
+        default=10,
         help='Specify max value of workers'
      )
 
