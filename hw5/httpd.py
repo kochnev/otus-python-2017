@@ -43,6 +43,7 @@ class HTTPServer:
         self.RequestHandlerClass = RequestHandlerClass
         self.max_workers = max_workers
         self.document_root = document_root
+
         self.socket = socket.socket(self.address_family, self.socket_type)
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.socket.bind(self.server_address)
@@ -52,14 +53,25 @@ class HTTPServer:
     def serve_forever(self):
         logging.info("Server is running on {0}".format(self.server_address))
         print("\nPress Ctrl+C to shut down server")
-        for _ in range(self.max_workers):
+        for _ in range(self.max_workers-1):
             client_handler = threading.Thread(
                 target=self.handle_client_connection)
+            client_handler.setDaemon(True)
             client_handler.start()
+
+        while True:
+            conn, client_address = self.socket.accept()
+            logging.info("Recived connection {0}".format(client_address))
+            self.process_request(conn)
 
     def handle_client_connection(self):
         while True:
-            conn, client_address = self.socket.accept()
+            try:
+                conn, client_address = self.socket.accept()
+            except OSError:
+                logging.info("close tread!!!")
+                return
+
             logging.info("Recived connection {0}".format(client_address))
             self.process_request(conn)
 
@@ -73,9 +85,9 @@ class HTTPServer:
         self.server_close()
 
     def server_close(self):
-        #self.socket.close()
-        #self.socket = None
-        pass
+        logging.info("start close")
+        self.socket.close()
+        self.socket = None
 
 
 class MainHTTPHandler:
@@ -312,7 +324,7 @@ if __name__ == "__main__":
         '--workers',
         '-w',
         type=int,
-        default=10,
+        default=5,
         help='Specify max value of workers'
      )
 
@@ -334,4 +346,3 @@ if __name__ == "__main__":
             httpd.serve_forever()
         except KeyboardInterrupt:
             print("\nKeyboard interrupt recieved, exiting.")
-            sys.exit(0)
