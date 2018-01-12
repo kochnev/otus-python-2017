@@ -324,7 +324,7 @@ if __name__ == "__main__":
         '--workers',
         '-w',
         type=int,
-        default=5,
+        default=10,
         help='Specify max value of workers'
      )
 

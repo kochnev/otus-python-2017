@@ -50,7 +50,7 @@ class Field(object):
 
     def __get__(self, obj, objtype):
         return self.value
-    
+
     @abc.abstractmethod
     def is_valid(self, value):
         return
@@ -67,6 +67,7 @@ class CharField(Field):
     def is_valid(self, value):
         if not isinstance(value, unicode):
             raise ValueError("{0} must be string".format(self.name))
+
 
 class ArgumentsField(Field):
     def is_valid(self, value):
@@ -85,7 +86,7 @@ class PhoneField(Field):
         s_val = str(value)
         length = len(s_val)
         if not (s_val.isdigit() and length == 11 and s_val.startswith('7')):
-            raise ValueError("{0} must be string or numer consisting of 11" 
+            raise ValueError("{0} must be string or numer consisting of 11"
                              + "digits and starting with 7".format(self.name))
 
 
@@ -110,7 +111,8 @@ class BirthDayField(DateField):
 class GenderField(Field):
     def is_valid(self, value):
         if value not in [0, 1, 2]:
-            raise ValueError("{0} must be one of the values 0, 1, 2".format(self.name))
+            raise ValueError("{0} must be one of the values 0, 1, 2".
+                             format(self.name))
 
 
 class ClientIDsField(Field):
@@ -150,16 +152,16 @@ class BaseRequest(object):
                     continue
             if value in ([], {}, '', None):
                 if f.nullable:
-                    self.errors.append("Field {0} is not nullable".format(name))
+                    self.errors.append("Field {0} is not nullable"
+                                       .format(name))
                     continue
 
             try:
                 setattr(self, name, value)
             except ValueError as e:
                 self.errors.append(str(e))
-            
-        self.is_cleaned = True
 
+        self.is_cleaned = True
 
     def is_valid(self):
         if not self.is_cleaned:
@@ -189,7 +191,7 @@ class MethodRequest(BaseRequest):
 class ClientsInterestsRequest(BaseRequest):
     client_ids = ClientIDsField(required=True)
     date = DateField(required=False, nullable=True)
-    
+
     def execute(self, ctx, is_admin):
         response = {}
         ctx['nclients'] = len(self.client_ids)
@@ -198,7 +200,6 @@ class ClientsInterestsRequest(BaseRequest):
             response[cid] = interests
 
         return response
-
 
 
 class OnlineScoreRequest(BaseRequest):
@@ -214,10 +215,10 @@ class OnlineScoreRequest(BaseRequest):
     phone = PhoneField(required=False, nullable=True)
     birthday = BirthDayField(required=False, nullable=True)
     gender = GenderField(required=False, nullable=True)
-    
-    def get_not_empty_fields(self):
-        return  [name for name in self.fields if getattr(self, name) not in ([], {}, '')]
 
+    def get_not_empty_fields(self):
+        return [name for name in self.fields
+                if getattr(self, name) not in ([], {}, '')]
 
     def is_valid(self):
         super(OnlineScoreRequest, self).is_valid()
@@ -245,7 +246,8 @@ class OnlineScoreRequest(BaseRequest):
             score = 42
         else:
             score = scoring.get_score(None, self.phone, self.email,
-                                      self.birthday, self.gender, self.first_name,
+                                      self.birthday, self.gender,
+                                      self.first_name,
                                       self.last_name)
         response["score"] = score
 
@@ -263,9 +265,11 @@ def get_handler_request(method, **kwargs):
 
 def check_auth(request):
     if request.login == ADMIN_LOGIN:
-        digest = hashlib.sha512(datetime.datetime.now().strftime("%Y%m%d%H") + str(ADMIN_SALT)).hexdigest()
+        digest = hashlib.sha512(datetime.datetime.now().strftime("%Y%m%d%H")
+                                + str(ADMIN_SALT)).hexdigest()
     else:
-        digest = hashlib.sha512(request.account + request.login + SALT).hexdigest()
+        digest = hashlib.sha512(request.account + request.login
+                                + SALT).hexdigest()
     if digest == request.token:
         return True
     return False
@@ -278,10 +282,10 @@ def method_handler(request, ctx, store):
     mr = MethodRequest(**request['body'])
     if not mr.is_valid():
         return ' '.join(mr.errors), INVALID_REQUEST
-    
+
     if not check_auth(mr):
         return "Forbidden", FORBIDDEN
-    
+
     handler = get_handler_request(mr.method, **mr.arguments)
     if not handler:
         return "Wrong method", BAD_REQUEST
@@ -290,7 +294,7 @@ def method_handler(request, ctx, store):
         response = handler.execute(ctx, mr.is_admin)
     else:
         return ' '.join(handler.errors), INVALID_REQUEST
-       
+
     return response, code
 
 

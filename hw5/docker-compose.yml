@@ -1,0 +1,10 @@
+version: "3"
+services:
+  httpserver:
+    restart: always
+    build: .
+    container_name: myserver
+    ports:
+      - 80:80
+    volumes:
+      - .:/src
