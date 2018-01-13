@@ -21,7 +21,6 @@ Implementation of Simple HTTP Web server. Multithreading architecture was used. 
 * Respond with correct `Content-Type` for `.html, .css, js, jpg, .jpeg, .png, .gif, .swf`
 * Respond to percent-encoding URLs
 
-
 ## Testing ##
 
 * `httptest` folder from `http-test-suite` repository should be copied into `DOCUMENT_ROOT`
@@ -29,6 +28,17 @@ Implementation of Simple HTTP Web server. Multithreading architecture was used. 
 * `http://localhost/httptest/wikipedia_russia.html` must been shown correctly in browser
 * Lowest-latency response (tested using `ab`, ApacheBench) in the following fashion: `ab -n 50000 -c 100 -r http://localhost:8080/`
 
+## Prerequisites
+
+Python version 2.7
+
+## Installing
+
+No special installation procedure is required. 
+
+## License
+
+This project is licensed under the MIT License
 
 ## Result of ab test ##
 ```
