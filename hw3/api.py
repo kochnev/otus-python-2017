@@ -66,7 +66,8 @@ class Field(object):
 class CharField(Field):
     def is_valid(self, value):
         if not isinstance(value, unicode):
-            raise ValueError("{0} must be string".format(self.name))
+            if not isinstance(value, str):
+                raise ValueError("{0} must be string".format(self.name))
 
 
 class ArgumentsField(Field):
