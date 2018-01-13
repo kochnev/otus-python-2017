@@ -1,7 +1,7 @@
 Simple HTTP web server
 =====================
 
-Implementation of Simple HTTP Web server. Multithreading architecture was used.
+Implementation of Simple HTTP Web server. Multithreading architecture was used. Python3.6.
 
 ## Description ##
 
