@@ -33,7 +33,7 @@ class HTTPServer:
 
     address_family = socket.AF_INET
     socket_type = socket.SOCK_STREAM
-    request_queue_size = 5
+    request_queue_size = 128
 
     def __init__(self, server_address, RequestHandlerClass,
                  max_workers,
@@ -76,7 +76,8 @@ class HTTPServer:
             self.process_request(conn)
 
     def process_request(self, conn):
-        MainHTTPHandler(conn, self.document_root)
+        request_handler = MainHTTPHandler(conn, self.document_root)
+        request_handler.handle()
 
     def __enter__(self):
         return self
@@ -126,7 +127,6 @@ class MainHTTPHandler:
         self.headers = []
         self.response = b""
         self.body = b""
-        self.handle()
 
     def handle(self):
         try:
@@ -173,11 +173,11 @@ class MainHTTPHandler:
         try:
             self.start_response(self.protocol_version, 200, 'OK')
             self.set_header("Content-Type", mimetype)
-            fs = os.fstat(f.fileno())
-            self.set_header("Content-Length", str(fs[6]))
+            content = f.read()
+            self.set_header("Content-Length", str(len(content)))
             self.end_headers()
             if self.method == 'GET':
-                self.body = f.read()
+                self.body = content
             self.build_response()
             self.send_response()
             f.close()
@@ -228,14 +228,12 @@ class MainHTTPHandler:
     def read_request(self):
         """Read request from the client socket"""
         data = b''
-        while True:
-            r = self.conn.recv(25)
+        while data.find(b'\r\n\r\n') == -1:
+            r = self.conn.recv(1024)
             # r is empty if socket is closed
             if not r:
                 break
             data += r
-            if data[-4:] == b'\r\n\r\n':
-                break
 
         self.request_line = data.splitlines()[0]
 
@@ -249,20 +247,17 @@ class MainHTTPHandler:
     def translate_path(self, path):
         """Translate a /-separated PATH to the local filename syntax."""
         path = path.split('?', 1)[0]
-        path = path.split('#', 1)[0]
-
-        trailing_slash = path.rstrip().endswith('/')
+        # path = path.split('#', 1)[0]
         path = urllib.parse.unquote(path)
         path = posixpath.normpath(path)
-        words = path.split('/')
-        words = filter(None, words)
-        path = self.document_root
-        for word in words:
-            if word in (os.curdir, os.pardir):
-                continue
-            path = os.path.join(path, word)
-        if trailing_slash:
-            path += '/'
+
+        if path == '/':
+            path = self.document_root
+        else:
+            path = path.lstrip('/')
+            path = os.path.join(self.document_root, path)
+
+        logging.info(path)
         return path
 
     def start_response(self, http_version, code, message):
@@ -292,51 +287,25 @@ class MainHTTPHandler:
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        '--port',
-        '-p',
-        type=int,
-        default=80,
-        help='Specify alternate port [default: 8000]'
-    )
-    parser.add_argument(
-        '--bind',
-        '-b',
-        default='',
-        help='Specify alternate bind address '
-        '[default:all interfaces]')
-
+    parser.add_argument('--port', '-p', type=int, default=80,
+                        help='Specify alternate port [default: 8000]')
+    parser.add_argument('--bind', '-b', default='',
+                        help='Specify alternate bind address '
+                        '[default:all interfaces]')
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    parser.add_argument(
-        '--root',
-        '-r',
-        default=base_dir,
-        help='Specify document root')
-
-    parser.add_argument(
-        '--log',
-        '-l',
-        default=None,
-        help='Specify path for logfile'
-    )
-
-    parser.add_argument(
-        '--workers',
-        '-w',
-        type=int,
-        default=10,
-        help='Specify max value of workers'
-     )
+    parser.add_argument('--root', '-r', default=base_dir,
+                        help='Specify document root')
+    parser.add_argument('--log', '-l', default=None,
+                        help='Specify path for logfile')
+    parser.add_argument('--workers', '-w', type=int, default=10,
+                        help='Specify max value of workers')
 
     args = parser.parse_args()
     server_address = (args.bind, args.port)
 
-    logging.basicConfig(
-        level=logging.INFO,
-        format='[%(asctime)s] %(levelname).1s %(message)s',
-        datefmt='%Y.%m.%d %H:%M:%S',
-        filename=args.log
-    )
+    logging.basicConfig(level=logging.INFO, filename=args.log,
+                        format='[%(asctime)s] %(levelname).1s %(message)s',
+                        datefmt='%Y.%m.%d %H:%M:%S')
 
     with HTTPServer(server_address,
                     MainHTTPHandler,

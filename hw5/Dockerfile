@@ -1,3 +1,5 @@
 FROM python:3.6
-RUN mkdir /src
-WORKDIR /src
+WORKDIR /app
+ADD . /app
+EXPOSE 80
+CMD ["python", "httpd.py"]
