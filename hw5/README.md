@@ -30,7 +30,7 @@ Implementation of Simple HTTP Web server. Multithreading architecture was used. 
 
 ## Prerequisites
 
-Python version 2.7
+Python version 3.6.
 
 ## Installing
 
