@@ -33,7 +33,7 @@ class HTTPServer:
 
     address_family = socket.AF_INET
     socket_type = socket.SOCK_STREAM
-    request_queue_size = 128
+    request_queue_size = 50
 
     def __init__(self, server_address, RequestHandlerClass,
                  max_workers,
@@ -131,14 +131,16 @@ class MainHTTPHandler:
     def handle(self):
         try:
             self.read_request()
-        except Exception:
+        except Exception as e:
+            logging.exception(str(e))
             self.send_error(400, 'Bad Request')
             return
 
         logging.info("Request line: {0}".format(self.request_line))
         try:
             self.parse_request()
-        except Exception:
+        except Exception as e:
+            logging.exception(str(e))
             self.send_error(400, 'Bad Request')
             return
 
@@ -161,6 +163,8 @@ class MainHTTPHandler:
                 path = index
                 logging.info("Path after edit: {0}".format(path))
             else:
+                logging.error("index.html does not exists in\
+                              {0}".format(path))
                 self.send_error(403, 'Forbidden')
                 return
 
@@ -168,6 +172,7 @@ class MainHTTPHandler:
         try:
             f = open(path, 'rb')
         except OSError:
+            logging.error("file {0} not found".format(path))
             self.send_error(404, 'File not found')
             return
         try:
@@ -232,10 +237,14 @@ class MainHTTPHandler:
             r = self.conn.recv(1024)
             # r is empty if socket is closed
             if not r:
+                logging.error("socket is closed")
                 break
             data += r
-
-        self.request_line = data.splitlines()[0]
+        try:
+            self.request_line = data.splitlines()[0]
+        except Exception as e:
+            logging.error("recieved data:{0}".format(data))
+            raise e
 
     def parse_request(self):
         """Parse a request.
@@ -288,7 +297,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--port', '-p', type=int, default=80,
-                        help='Specify alternate port [default: 8000]')
+                        help='Specify alternate port [default: 80]')
     parser.add_argument('--bind', '-b', default='',
                         help='Specify alternate bind address '
                         '[default:all interfaces]')
@@ -297,7 +306,7 @@ if __name__ == "__main__":
                         help='Specify document root')
     parser.add_argument('--log', '-l', default=None,
                         help='Specify path for logfile')
-    parser.add_argument('--workers', '-w', type=int, default=10,
+    parser.add_argument('--workers', '-w', type=int, default=30,
                         help='Specify max value of workers')
 
     args = parser.parse_args()
