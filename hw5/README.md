@@ -42,7 +42,7 @@ This project is licensed under the MIT License
 
 ## Result of ab test ##
 ```
-Server Software:        HTTPServer/0.1
+erver Software:        HTTPServer/0.1
 Server Hostname:        localhost
 Server Port:            8080
 
@@ -50,32 +50,31 @@ Document Path:          /
 Document Length:        612 bytes
 
 Concurrency Level:      100
-Time taken for tests:   184.631 seconds
+Time taken for tests:   199.180 seconds
 Complete requests:      50000
-Failed requests:        55
-   (Connect: 0, Receive: 0, Length: 55, Exceptions: 0)
-Total transferred:      38457650 bytes
-HTML transferred:       30566340 bytes
-Requests per second:    270.81 [#/sec] (mean)
-Time per request:       369.263 [ms] (mean)
-Time per request:       3.693 [ms] (mean, across all concurrent requests)
-Transfer rate:          203.41 [Kbytes/sec] received
+Failed requests:        0
+Total transferred:      38500000 bytes
+HTML transferred:       30600000 bytes
+Requests per second:    251.03 [#/sec] (mean)
+Time per request:       398.359 [ms] (mean)
+Time per request:       3.984 [ms] (mean, across all concurrent requests)
+Transfer rate:          188.76 [Kbytes/sec] received
 
 Connection Times (ms)
               min  mean[+/-sd] median   max
-Connect:        0    2 196.8      0   22571
-Processing:     4  314 3773.9     30  109882
-Waiting:        0  196 1338.9     29   64928
-Total:          5  316 3779.5     30  109882
+Connect:        0    0   0.4      0      64
+Processing:    52  397 484.6    306   64937
+Waiting:       51  396 484.5    306   64937
+Total:         58  397 484.6    307   64937
 
 Percentage of the requests served within a certain time (ms)
-  50%     30
-  66%     33
-  75%     35
-  80%     37
-  90%     51
-  95%   1064
-  98%   1733
-  99%   3362
- 100%  109882 (longest request)
+  50%    307
+  66%    326
+  75%    340
+  80%    351
+  90%    418
+  95%   1313
+  98%   1398
+  99%   1563
+ 100%  64937 (longest request)
 ```
