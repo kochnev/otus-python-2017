@@ -41,6 +41,15 @@ No special installation procedure is required.
 This project is licensed under the MIT License
 
 ## Result of ab test ##
+For testing in docker container at first you should:
+1. Create an image:
+   docker build -t httpserver .
+2. Create and run conatainer:
+   docker run -it -v [full path to direcotry with httpd.py]:/app -p 8080:80 httpserver /bin/sh
+3. Run the server:
+   python httpd.py [options]
+4. Run command from host os: ab -n 50000 -c 100 -r http://localhost:8080/
+
 ```
 erver Software:        HTTPServer/0.1
 Server Hostname:        localhost
