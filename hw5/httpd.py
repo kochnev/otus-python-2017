@@ -33,7 +33,7 @@ class HTTPServer:
 
     address_family = socket.AF_INET
     socket_type = socket.SOCK_STREAM
-    request_queue_size = 50
+    request_queue_size = 100
 
     def __init__(self, server_address, RequestHandlerClass,
                  max_workers,
