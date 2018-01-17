@@ -43,14 +43,14 @@ This project is licensed under the MIT License
 ## Result of ab test ##
 For testing in docker container at first you should:
 1. Create an image:
-   docker build -t httpserver .
+   `docker build -t httpserver `
 2. Create and run conatainer:
-   docker run -it -v [full path to direcotry with httpd.py]:/app -p 8080:80 httpserver /bin/sh
+   `docker run -it -v [full path to direcotry with httpd.py]:/app -p 8080:80 httpserver /bin/sh`
 3. Run the server:
    python httpd.py [options]
-4. Run command from host os: ab -n 50000 -c 100 -r http://localhost:8080/
+4. Run command from host os: `ab -n 50000 -c 100 -r http://localhost:8080/`
    If your host OS is Mac OS then you should run ab in docker container, for example https://hub.docker.com/r/jordi/ab/
-   docker run --rm jordi/ab ab -n 50000 -c 100 -r http://172.17.0.1:8080/
+   `docker run --rm jordi/ab ab -n 50000 -c 100 -r http://172.17.0.1:8080/`
 
 ```
 Server Software:        HTTPServer/0.1
