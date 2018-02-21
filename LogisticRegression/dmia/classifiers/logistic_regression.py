@@ -46,7 +46,7 @@ class LogisticRegression:
             # Hint: Use np.random.choice to generate indices. Sampling with         #
             # replacement is faster than sampling without replacement.              #
             #########################################################################
-            ix = np.random.choice(num_train, batch_size, replace=True)
+            ix = np.random.choice(num_train, batch_size)
             X_batch = X[ix, :]
             y_batch = y[ix]
 
@@ -62,14 +62,14 @@ class LogisticRegression:
             # TODO:                                                                 #
             # Update the weights using the gradient and the learning rate.          #
             #########################################################################
-            self.w = self.w + learning_rate * (-gradW)
+            self.w = self.w - learning_rate * gradW
 
             #########################################################################
             #                       END OF YOUR CODE                                #
             #########################################################################
 
             if verbose and it % 100 == 0:
-                print 'iteration %d / %d: loss %f' % (it, num_iters, loss)
+                print('iteration %d / %d: loss %f' % (it, num_iters, loss))
 
         return self
 
@@ -95,7 +95,7 @@ class LogisticRegression:
         ###########################################################################
 
         predictions = sigmoid(X.dot(self.w))
-        y_proba = np.vstack([1 - predictions, predictions]).T
+        y_proba = np.vstack((1 - predictions, predictions)).T
 
         ###########################################################################
         #                           END OF YOUR CODE                              #
@@ -142,9 +142,7 @@ class LogisticRegression:
         m, n = X_batch.shape
         # Compute loss and gradient. Your code should not contain python loops.
         H = sigmoid(X_batch.dot(self.w))
-        P1 = -y_batch * np.log(H)
-        P2 = (1.0 - y_batch) * np.log(1.0 - H)
-        loss = (P1 - P2).sum()
+        loss = (-y_batch * np.log(H) - (1.0 - y_batch) * np.log(1.0 - H)).sum()
         grad = (H - y_batch) * X_batch
 
 
@@ -159,7 +157,6 @@ class LogisticRegression:
         # Note that you have to exclude bias term in regularization.
 
         loss = loss + (reg / (2.0 * m)) * (self.w[:-1] ** 2).sum()
-        dw[-1] = grad[-1]
         dw[:-1] = grad[:-1] + (reg / m) * self.w[:-1]
 
         return loss, dw
@@ -167,5 +164,5 @@ class LogisticRegression:
     def append_biases(X):
         return sparse.hstack((X, np.ones(X.shape[0])[:, np.newaxis])).tocsr()
 
-def sigmoid(x):
-    return 1.0 / (1.0 + np.exp(-x))
+def sigmoid(z):
+    return 1.0 / (1.0 + np.exp(-z))
