@@ -13,7 +13,9 @@ from optparse import OptionParser
 import appsinstalled_pb2
 # pip install python-memcached
 import memcache
+import multiprocessing as mp
 
+WORKERS_NUM = 3
 NORMAL_ERR_RATE = 0.01
 AppsInstalled = collections.namedtuple("AppsInstalled", ["dev_type", "dev_id", "lat", "lon", "apps"])
 
@@ -39,7 +41,7 @@ def insert_appsinstalled(memc_addr, appsinstalled, dry_run=False):
         else:
             memc = memcache.Client([memc_addr])
             memc.set(key, packed)
-    except Exception, e:
+    except Exception as e:
         logging.exception("Cannot write to memc %s: %s" % (memc_addr, e))
         return False
     return True
@@ -64,6 +66,42 @@ def parse_appsinstalled(line):
     return AppsInstalled(dev_type, dev_id, lat, lon, apps)
 
 
+def process_file((fn, device_memc, dry_run)):
+    processed = errors = 0
+    logging.info('Processing %s' % fn)
+    fd = gzip.open(fn)
+    for line in fd:
+        logging.info('Processing %s' % fn)
+        if not line:
+            continue
+        appsinstalled = parse_appsinstalled(line)
+        if not appsinstalled:
+            errors += 1
+            continue
+        memc_addr = device_memc.get(appsinstalled.dev_type)
+        if not memc_addr:
+            errors += 1
+            logging.error("Unknow device type: %s" % appsinstalled.dev_type)
+            continue
+        ok = insert_appsinstalled(memc_addr, appsinstalled, dry_run)
+        if ok:
+            processed += 1
+        else:
+            errors += 1
+    if processed:
+        err_rate = float(errors) / processed
+        if err_rate < NORMAL_ERR_RATE:
+            logging.info("Prn: %s. Fn: %s. Acceptable error rate (%s). \
+                         Successfull load" % (mp.current_process().name, fn, err_rate))
+        else:
+            logging.error("Process name: %s. File name: %s. \
+                          High error rate (%s> %s). \
+                          Failed load" % (mp.current_process().name,
+                          fn, err_rate, NORMAL_ERR_RATE))
+        fd.close()
+    return fn
+
+
 def main(options):
     device_memc = {
         "idfa": options.idfa,
@@ -71,39 +109,13 @@ def main(options):
         "adid": options.adid,
         "dvid": options.dvid,
     }
+    pool = mp.Pool(WORKERS_NUM)
+    args = []
     for fn in glob.iglob(options.pattern):
-        processed = errors = 0
-        logging.info('Processing %s' % fn)
-        fd = gzip.open(fn)
-        for line in fd:
-            line = line.strip()
-            if not line:
-                continue
-            appsinstalled = parse_appsinstalled(line)
-            if not appsinstalled:
-                errors += 1
-                continue
-            memc_addr = device_memc.get(appsinstalled.dev_type)
-            if not memc_addr:
-                errors += 1
-                logging.error("Unknow device type: %s" % appsinstalled.dev_type)
-                continue
-            ok = insert_appsinstalled(memc_addr, appsinstalled, options.dry)
-            if ok:
-                processed += 1
-            else:
-                errors += 1
-        if not processed:
-            fd.close()
-            dot_rename(fn)
-            continue
+        args.append((fn, device_memc, options.dry))
+    args.sort(key=lambda x: x[0])
 
-        err_rate = float(errors) / processed
-        if err_rate < NORMAL_ERR_RATE:
-            logging.info("Acceptable error rate (%s). Successfull load" % err_rate)
-        else:
-            logging.error("High error rate (%s > %s). Failed load" % (err_rate, NORMAL_ERR_RATE))
-        fd.close()
+    for fn in pool.imap(process_file, args):
         dot_rename(fn)
 
 
@@ -143,6 +155,6 @@ if __name__ == '__main__':
     logging.info("Memc loader started with options: %s" % opts)
     try:
         main(opts)
-    except Exception, e:
+    except Exception as e:
         logging.exception("Unexpected error: %s" % e)
         sys.exit(1)
