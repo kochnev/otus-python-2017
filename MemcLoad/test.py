@@ -3,6 +3,7 @@ import memc_load
 import os
 from optparse import OptionParser
 
+
 class TestMemcLoad(unittest.TestCase):
     def setUp(self):
         op = OptionParser()
