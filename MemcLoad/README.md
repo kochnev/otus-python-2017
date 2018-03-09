@@ -8,6 +8,10 @@ The script memc_load.py parses lines from files with logs and upload result in m
 * threading is used to create thread per memcache server connection
 * queue is used to communicate between threads.
 
+## How to run ##
+
+python memc_load.py --pattern={root_path}/data/*.tsv.gz 
+
 ## Testing ##
 
 
