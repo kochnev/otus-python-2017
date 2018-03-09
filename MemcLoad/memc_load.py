@@ -59,6 +59,8 @@ class MemcacheClient(threading.Thread):
 def dot_rename(path):
     head, fn = os.path.split(path)
     # atomic in most cases
+    print(os.path.join(head, "." + fn))
+    print(path)
     os.rename(path, os.path.join(head, "." + fn))
 
 
@@ -113,7 +115,7 @@ def parse_appsinstalled(line):
 
 def process_file(opt):
     fn, device_memc, dry = opt
-    result_queue = Queue.Queue
+    result_queue = Queue.Queue()
     threads = []
     queue_dict = {}
 
