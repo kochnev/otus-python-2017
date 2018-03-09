@@ -14,6 +14,7 @@ python memc_load.py --pattern={root_path}/data/*.tsv.gz
 
 ## Testing ##
 
+python test.py
 
 ## Prerequisites
 
