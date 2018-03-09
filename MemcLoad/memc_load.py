@@ -14,10 +14,46 @@ import appsinstalled_pb2
 # pip install python-memcached
 import memcache
 import multiprocessing as mp
+import queue
+import time
+import threading
 
+SENTINEL = object()
 WORKERS_NUM = 3
 NORMAL_ERR_RATE = 0.01
 AppsInstalled = collections.namedtuple("AppsInstalled", ["dev_type", "dev_id", "lat", "lon", "apps"])
+
+
+class MemcacheClient(threading.Thread):
+    def __int__(self, memc_addr, line_queue, result_queue, dry_run):
+        threading.Tread.__init___(self)
+        self.daemon = True
+        self.memc_addr = memc_addr
+        self.line_queue = line_queue
+        self.result_queue = result_queue
+        self.dry_run = dry_run
+        self.processed = 0
+        self.errors = 0
+
+    def run(self):
+        client = memcache.Client([self.memc_addr], socket_timeout=1)
+        while True:
+            try:
+                line = self.line_queue.get(timeout=0.1)
+                if line == SENTINEL:
+                    self.result_queue.put((self.processed, self.errors))
+                    break
+                else:
+                    self.processed += 1
+                    appsinstalled = parse_appsinstalled(line)
+                    if not appsinstalled:
+                        self.errors += 1
+                        continue
+                    inserted = insert_appsinstalled(client, appsinstalled, self.dry_run)
+                    if not inserted:
+                        self.errors += 1
+            except queue.Empty:
+                continue
 
 
 def dot_rename(path):
@@ -26,7 +62,7 @@ def dot_rename(path):
     os.rename(path, os.path.join(head, "." + fn))
 
 
-def insert_appsinstalled(memc_addr, appsinstalled, dry_run=False):
+def insert_appsinstalled(memc, appsinstalled, dry_run=False):
     ua = appsinstalled_pb2.UserApps()
     ua.lat = appsinstalled.lat
     ua.lon = appsinstalled.lon
@@ -35,14 +71,23 @@ def insert_appsinstalled(memc_addr, appsinstalled, dry_run=False):
     packed = ua.SerializeToString()
     # @TODO persistent connection
     # @TODO retry and timeouts!
+    current = 1
+    allowed = 3
+    timeout = 0.3
+
     try:
         if dry_run:
-            logging.debug("%s - %s -> %s" % (memc_addr, key, str(ua).replace("\n", " ")))
+            logging.debug("%s - %s -> %s" % (memc.servers[0], key,
+                                             str(ua).replace("\n", " ")))
         else:
-            memc = memcache.Client([memc_addr])
-            memc.set(key, packed)
+            res = memc.set(key, packed)
+            while res == 0 and (current < allowed):
+                time.sleep(timeout)
+                current += 1
+                res = memc.set(key, packed)
+            return bool(res)
     except Exception as e:
-        logging.exception("Cannot write to memc %s: %s" % (memc_addr, e))
+        logging.exception("Cannot write to memc %s: %s" % (memc.servers[0], e))
         return False
     return True
 
@@ -66,7 +111,20 @@ def parse_appsinstalled(line):
     return AppsInstalled(dev_type, dev_id, lat, lon, apps)
 
 
-def process_file((fn, device_memc, dry_run)):
+def process_file(opt):
+    fn, device_memc, dry = opt
+    result_queue = queue.Queue
+    threads = []
+    queue_dict = {}
+
+    for dev_type, addr in device_memc.items():
+        queue_dict[dev_type] = queue.Queue()
+        thread = MemcacheClient(queue_dict[dev_type], result_queue, addr, dry)
+        threads.append(thread)
+
+    for thread in threads:
+        thread.start()
+
     processed = errors = 0
     logging.info('Processing %s' % fn)
     fd = gzip.open(fn)
@@ -74,31 +132,36 @@ def process_file((fn, device_memc, dry_run)):
         logging.info('Processing %s' % fn)
         if not line:
             continue
-        appsinstalled = parse_appsinstalled(line)
-        if not appsinstalled:
+        dev_type = line.split()[0]
+        if dev_type not in device_memc:
             errors += 1
-            continue
-        memc_addr = device_memc.get(appsinstalled.dev_type)
-        if not memc_addr:
-            errors += 1
-            logging.error("Unknow device type: %s" % appsinstalled.dev_type)
-            continue
-        ok = insert_appsinstalled(memc_addr, appsinstalled, dry_run)
-        if ok:
             processed += 1
-        else:
-            errors += 1
+            logging.error("Unknow device type: %s" % dev_type)
+            continue
+        queue_dict[dev_type].put(line)
+
+    for dev_type in device_memc:
+        queue_dict[dev_type].put(SENTINEL)
+
+    for thread in threads:
+        thread.join()
+
+    while not result_queue.empty():
+        thread_processed, thread_errors = result_queue.get()
+        processed += thread_processed
+        errors += thread_errors
+
     if processed:
         err_rate = float(errors) / processed
         if err_rate < NORMAL_ERR_RATE:
             logging.info("Prn: %s. Fn: %s. Acceptable error rate (%s). \
-                         Successfull load" % (mp.current_process().name, fn, err_rate))
+                     Successfull load" % (mp.current_process().name, fn, err_rate))
         else:
             logging.error("Process name: %s. File name: %s. \
                           High error rate (%s> %s). \
                           Failed load" % (mp.current_process().name,
                           fn, err_rate, NORMAL_ERR_RATE))
-        fd.close()
+    fd.close()
     return fn
 
 
