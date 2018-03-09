@@ -14,7 +14,7 @@ import appsinstalled_pb2
 # pip install python-memcached
 import memcache
 import multiprocessing as mp
-import queue
+import Queue
 import time
 import threading
 
@@ -25,8 +25,8 @@ AppsInstalled = collections.namedtuple("AppsInstalled", ["dev_type", "dev_id", "
 
 
 class MemcacheClient(threading.Thread):
-    def __int__(self, memc_addr, line_queue, result_queue, dry_run):
-        threading.Tread.__init___(self)
+    def __init__(self, memc_addr, line_queue, result_queue, dry_run):
+        threading.Thread.__init__(self)
         self.daemon = True
         self.memc_addr = memc_addr
         self.line_queue = line_queue
@@ -52,7 +52,7 @@ class MemcacheClient(threading.Thread):
                     inserted = insert_appsinstalled(client, appsinstalled, self.dry_run)
                     if not inserted:
                         self.errors += 1
-            except queue.Empty:
+            except Queue.Empty:
                 continue
 
 
@@ -113,12 +113,12 @@ def parse_appsinstalled(line):
 
 def process_file(opt):
     fn, device_memc, dry = opt
-    result_queue = queue.Queue
+    result_queue = Queue.Queue
     threads = []
     queue_dict = {}
 
     for dev_type, addr in device_memc.items():
-        queue_dict[dev_type] = queue.Queue()
+        queue_dict[dev_type] = Queue.Queue()
         thread = MemcacheClient(queue_dict[dev_type], result_queue, addr, dry)
         threads.append(thread)
 
@@ -126,17 +126,19 @@ def process_file(opt):
         thread.start()
 
     processed = errors = 0
-    logging.info('Processing %s' % fn)
+    logging.info('Pr.Name: %s. Processing %s' % (mp.current_process().name, fn))
     fd = gzip.open(fn)
     for line in fd:
-        logging.info('Processing %s' % fn)
+        logging.info('Pr. Name: %s. Processing %s' %
+                     (mp.current_process().name, line))
         if not line:
             continue
         dev_type = line.split()[0]
         if dev_type not in device_memc:
             errors += 1
             processed += 1
-            logging.error("Unknow device type: %s" % dev_type)
+            logging.error("Pr. Name: %s. Unknow device type: %s"
+                          % (mp.current_process().name, dev_type))
             continue
         queue_dict[dev_type].put(line)
 
@@ -173,12 +175,12 @@ def main(options):
         "dvid": options.dvid,
     }
     pool = mp.Pool(WORKERS_NUM)
-    args = []
+    func_args = []
     for fn in glob.iglob(options.pattern):
-        args.append((fn, device_memc, options.dry))
-    args.sort(key=lambda x: x[0])
-
-    for fn in pool.imap(process_file, args):
+        func_args.append((fn, device_memc, options.dry))
+    func_args.sort(key=lambda x: x[0])
+    print(func_args)
+    for fn in pool.imap(process_file, func_args):
         dot_rename(fn)
 
 
