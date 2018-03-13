@@ -1,7 +1,7 @@
 MemcLoad
 =====================
 
-The script memc_load.py parses lines from files with logs and upload result in memcache.
+The script `memc_load.py` parses lines from files with logs and upload result in memcache.
 
 ## Description ##
 * multiprocessing is used to create pool of process
@@ -10,10 +10,11 @@ The script memc_load.py parses lines from files with logs and upload result in m
 
 ## How to run ##
 
-python memc_load.py --pattern={root_path}/data/*.tsv.gz 
+`python memc_load.py --pattern={root_path}/data/*.tsv.gz`
 
 ## Testing ##
 
+`python test.py`
 
 ## Prerequisites
 
