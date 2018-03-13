@@ -39,18 +39,14 @@ class MemcacheClient(threading.Thread):
         client = memcache.Client([self.memc_addr], socket_timeout=1)
         while True:
             try:
-                line = self.line_queue.get(timeout=0.1)
-                if line == SENTINEL:
+                key_packed = self.line_queue.get()
+                if key_packed == SENTINEL:
                     self.result_queue.put((self.processed, self.errors))
                     break
                 else:
                     self.processed += 1
-                    appsinstalled = parse_appsinstalled(line)
-                    if not appsinstalled:
-                        self.errors += 1
-                        continue
-                    inserted = insert_appsinstalled(client, appsinstalled, self.dry_run)
-                    if not inserted:
+                    ok = insert_appsinstalled(client, key_packed, self.dry_run)
+                    if not ok:
                         self.errors += 1
             except Queue.Empty:
                 continue
@@ -64,23 +60,14 @@ def dot_rename(path):
     os.rename(path, os.path.join(head, "." + fn))
 
 
-def insert_appsinstalled(memc, appsinstalled, dry_run=False):
-    ua = appsinstalled_pb2.UserApps()
-    ua.lat = appsinstalled.lat
-    ua.lon = appsinstalled.lon
-    key = "%s:%s" % (appsinstalled.dev_type, appsinstalled.dev_id)
-    ua.apps.extend(appsinstalled.apps)
-    packed = ua.SerializeToString()
-    # @TODO persistent connection
-    # @TODO retry and timeouts!
+def insert_appsinstalled(memc, key_packed, dry_run=False):
+    key, packed = key_packed
     current = 1
     allowed = 3
     timeout = 0.3
-
     try:
         if dry_run:
-            logging.debug("%s - %s -> %s" % (memc.servers[0], key,
-                                             str(ua).replace("\n", " ")))
+            logging.debug("%s - %s -> %s" % (memc.servers[0], key, packed))
         else:
             res = memc.set(key, packed)
             while res == 0 and (current < allowed):
@@ -113,6 +100,16 @@ def parse_appsinstalled(line):
     return AppsInstalled(dev_type, dev_id, lat, lon, apps)
 
 
+def serialize_appsinstalled(appsinstalled):
+    ua = appsinstalled_pb2.UserApps()
+    ua.lat = appsinstalled.lat
+    ua.lon = appsinstalled.lon
+    key = "%s:%s" % (appsinstalled.dev_type, appsinstalled.dev_id)
+    ua.apps.extend(appsinstalled.apps)
+    packed = ua.SerializeToString()
+    return (key, packed)
+
+
 def process_file(opt):
     fn, device_memc, dry = opt
     result_queue = Queue.Queue()
@@ -131,18 +128,25 @@ def process_file(opt):
     logging.info('Pr.Name: %s. Processing %s' % (mp.current_process().name, fn))
     fd = gzip.open(fn)
     for line in fd:
+        processed += 1
         logging.info('Pr. Name: %s. Processing %s' %
                      (mp.current_process().name, line))
+        line = line.strip()
         if not line:
+            errors += 1
             continue
-        dev_type = line.split()[0]
+        appsinstalled = parse_appsinstalled(line)
+        dev_type = appsinstalled.dev_type
+        if not appsinstalled:
+            errors += 1
+            continue
         if dev_type not in device_memc:
             errors += 1
-            processed += 1
             logging.error("Pr. Name: %s. Unknow device type: %s"
                           % (mp.current_process().name, dev_type))
             continue
-        queue_dict[dev_type].put(line)
+        key_packed = serialize_appsinstalled(appsinstalled)
+        queue_dict[dev_type].put(key_packed)
 
     for dev_type in device_memc:
         queue_dict[dev_type].put(SENTINEL)
@@ -181,7 +185,6 @@ def main(options):
     for fn in glob.iglob(options.pattern):
         func_args.append((fn, device_memc, options.dry))
     func_args.sort(key=lambda x: x[0])
-    print(func_args)
     for fn in pool.imap(process_file, func_args):
         dot_rename(fn)
 
