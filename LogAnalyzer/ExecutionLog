@@ -1,0 +1,80 @@
+[2017.12.15 09:56:01] I ======start=======
+[2017.12.15 09:56:01] I search for logfiles
+[2017.12.15 09:56:01] I get the latest logfile
+[2017.12.15 09:56:01] I get the attributes of the latest logfile
+[2017.12.15 09:56:01] I the latest log file is ./log/nginx-access-ui.log-20170630.gz
+[2017.12.15 09:56:01] I report name is ./reports/report_2017-06-30.html
+[2017.12.15 09:56:01] I Report for date  2017-06-30 already exists
+[2017.12.15 09:56:01] I =====end=====
+[2017.12.15 09:56:22] I ======start=======
+[2017.12.15 09:56:22] I search for logfiles
+[2017.12.15 09:56:22] I get the latest logfile
+[2017.12.15 09:56:22] I get the attributes of the latest logfile
+[2017.12.15 09:56:22] I the latest log file is ./log/nginx-access-ui.log-20170630.gz
+[2017.12.15 09:56:22] I report name is ./reports/report_2017-06-30.html
+[2017.12.15 09:56:22] I Report for date  2017-06-30 already exists
+[2017.12.15 09:56:22] I =====end=====
+[2017.12.15 18:58:04] I ======start=======
+[2017.12.15 18:58:04] I search for logfiles
+[2017.12.15 18:58:04] I get the latest logfile
+[2017.12.15 18:58:04] I get the attributes of the latest logfile
+[2017.12.15 18:58:04] I the latest log file is ./log/nginx-access-ui.log-20170629.gz
+[2017.12.15 18:58:04] I report name is ./reports/report_2017-06-29.html
+[2017.12.15 18:58:04] I Report for date  2017-06-29 already exists
+[2017.12.15 18:58:04] I =====end=====
+[2017.12.15 18:59:55] I ======start=======
+[2017.12.15 18:59:55] I search for logfiles
+[2017.12.15 18:59:55] I get the latest logfile
+[2017.12.15 18:59:55] I get the attributes of the latest logfile
+[2017.12.15 18:59:55] I the latest log file is ./log/nginx-access-ui.log-20170629.gz
+[2017.12.15 18:59:55] I report name is ./reports/report_2017-06-29.html
+[2017.12.15 18:59:55] I read lines from the log file
+[2017.12.15 18:59:55] I get parsed lines
+[2017.12.15 18:59:55] I get report data
+[2017.12.15 19:00:48] E name 'time_coll' is not defined
+Traceback (most recent call last):
+  File "log_analyzer.py", line 256, in <module>
+    main(primary_config)
+  File "log_analyzer.py", line 220, in main
+    report_data = get_report_data(config, parsed_lines)
+  File "log_analyzer.py", line 77, in get_report_data
+    time_max = max(time_coll)
+NameError: name 'time_coll' is not defined
+[2017.12.15 19:00:48] I =====end=====
+[2017.12.15 19:01:19] I ======start=======
+[2017.12.15 19:01:19] I search for logfiles
+[2017.12.15 19:01:19] I get the latest logfile
+[2017.12.15 19:01:19] I get the attributes of the latest logfile
+[2017.12.15 19:01:19] I the latest log file is ./log/nginx-access-ui.log-20170629.gz
+[2017.12.15 19:01:19] I report name is ./reports/report_2017-06-29.html
+[2017.12.15 19:01:19] I read lines from the log file
+[2017.12.15 19:01:19] I get parsed lines
+[2017.12.15 19:01:19] I get report data
+[2017.12.15 19:01:22] I generating html report...
+[2017.12.15 19:01:22] I report html has created successfully!
+[2017.12.15 19:01:22] I timestamp has updated
+[2017.12.15 19:01:22] I =====end=====
+[2017.12.19 01:45:41] I ======start=======
+[2017.12.19 01:45:41] I search for logfiles
+[2017.12.19 01:45:41] I get the latest logfile
+[2017.12.19 01:45:41] I get the attributes of the latest logfile
+[2017.12.19 01:45:41] I the latest log file is ./log/nginx-access-ui.log-20170630.gz
+[2017.12.19 01:45:41] I report name is ./reports/report_2017-06-30.html
+[2017.12.19 01:45:41] I read lines from the log file
+[2017.12.19 01:45:41] I get parsed lines
+[2017.12.19 01:45:41] I get report data
+[2017.12.19 01:45:55] I generating html report...
+[2017.12.19 01:45:55] I report html has created successfully!
+[2017.12.19 01:45:55] I timestamp has updated
+[2017.12.19 01:45:55] I =====end=====
+[2017.12.23 00:15:55] I ======start=======
+[2017.12.23 00:15:55] I search for logfiles
+[2017.12.23 00:15:55] I get the latest logfile
+[2017.12.23 00:15:55] E max() arg is an empty sequence
+Traceback (most recent call last):
+  File "log_analyzer.py", line 260, in <module>
+    main(primary_config)
+  File "log_analyzer.py", line 201, in main
+    latest_logfile = max(logfiles, key=lambda log: log.date)
+ValueError: max() arg is an empty sequence
+[2017.12.23 00:15:55] I =====end=====
