@@ -1,6 +1,5 @@
-# otus-python-2017
+# otus-python-projects
 
-Code samples, study materials, etc.
 
 Author
 
